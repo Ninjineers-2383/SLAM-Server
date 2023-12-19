@@ -55,7 +55,7 @@ public class EKFSLAM {
      * Constructs an EKFSLAM object.
      *
      * @param numLandmarks
-     *            the number of landmarks in the environment
+     *                     the number of landmarks in the environment
      */
     public EKFSLAM(int numLandmarks) {
         // Construct F_x matrix with 1s on the left block diagonal
@@ -95,7 +95,7 @@ public class EKFSLAM {
      * constructed.
      * 
      * @param landmarks
-     *            an array of poses of the landmarks in the environment
+     *                  an array of poses of the landmarks in the environment
      */
     public void seedLandmarks(Pose3d[] landmarks) {
         for (int i = 0; i < landmarks.length; i++) {
@@ -146,9 +146,9 @@ public class EKFSLAM {
      * control input.
      * 
      * @param speeds
-     *            the robot's control input
+     *               the robot's control input
      * @param dt
-     *            the time elapsed since the last call to predict()
+     *               the time elapsed since the last call to predict()
      * @return the predicted pose of the robot
      */
     public Pose3d predict(ChassisSpeeds speeds, double dt) {
@@ -170,9 +170,9 @@ public class EKFSLAM {
      * observation of a landmark.
      * 
      * @param robotToTag
-     *            the robot's observation of the landmark
+     *                      the robot's observation of the landmark
      * @param landmarkIndex
-     *            the index of the landmark in the state vector
+     *                      the index of the landmark in the state vector
      * @return the corrected pose of the robot
      */
     public Pose3d correct(Transform3d robotToTag, int landmarkIndex) {
@@ -239,7 +239,7 @@ public class EKFSLAM {
      * Returns the pose of a landmark.
      * 
      * @param landmarkIndex
-     *            the index of the landmark in the state vector
+     *                      the index of the landmark in the state vector
      * @return the pose of the landmark
      */
     public Pose3d getLandmarkPose(int landmarkIndex) {

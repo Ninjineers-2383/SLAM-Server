@@ -25,6 +25,8 @@ public class Server {
 
     private int numLandmarks = 0;
 
+    private Pose3d[] landmarks;
+
     private IntegerSubscriber numLandmarksSub;
     private StructArraySubscriber<Pose3d> landmarksSub;
     private StructSubscriber<ChassisSpeeds> chassisSpeedsSub;
@@ -76,18 +78,12 @@ public class Server {
     }
 
     public void visionConsumer(List<TimestampVisionUpdate> visionUpdates) {
-        Pose3d pose = m_slam.getRobotPose();
 
-        Pose3d[] landmarks = new Pose3d[visionUpdates.size()];
-        int i = 0;
         for (TimestampVisionUpdate update : visionUpdates) {
             if (!m_slam.isEnabled()) {
                 m_slam.setInitialRobotPose(landmarks[update.tagId()].plus(update.pose().inverse()));
             }
-            Pose3d tagPose = pose.plus(update.pose());
-            landmarks[i] = tagPose;
             m_slam.correct(update.pose(), update.tagId() - 1);
-            i++;
         }
     }
 }
