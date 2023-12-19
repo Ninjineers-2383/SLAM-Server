@@ -23,7 +23,7 @@ public class Server {
     private EKFSLAM m_slam;
     private VisionSubsystem m_visionSubsystem;
 
-    private int previousNumLandmarks = 0;
+    private int numLandmarks = 0;
 
     private IntegerSubscriber numLandmarksSub;
     private StructArraySubscriber<Pose3d> landmarksSub;
@@ -32,8 +32,6 @@ public class Server {
     private StructPublisher<Pose3d> posePub;
     private StructArrayPublisher<Pose3d> landmarksPub;
 
-    private int landmarkNums;
-    private Pose3d[] landmarks;
     private ChassisSpeeds chassisSpeeds;
 
     public Server() {
@@ -41,35 +39,40 @@ public class Server {
         NetworkTable table = inst.getTable("slam_data");
         landmarksSub = table.getStructArrayTopic("landmarks", Pose3d.struct).subscribe(new Pose3d[0]);
         numLandmarksSub = table.getIntegerTopic("numLandmarks").subscribe(0);
-        chassisSpeedsSub = table.getStructTopic("chassisSpeeds", new ChassisSpeedsStruct()).subscribe(new ChassisSpeeds());
+        chassisSpeedsSub = table.getStructTopic("chassisSpeeds", new ChassisSpeedsStruct())
+                .subscribe(new ChassisSpeeds());
 
         posePub = table.getStructTopic("pose", Pose3d.struct).publish();
         landmarksPub = table.getStructArrayTopic("landmarks", Pose3d.struct).publish();
     }
 
     public void loop() {
-        landmarkNums = (int) numLandmarksSub.get(0);
-        landmarks = landmarksSub.get(new Pose3d[0]);
-        chassisSpeeds = chassisSpeedsSub.get(new ChassisSpeeds());
+        int newNumLandmarks = (int) numLandmarksSub.get(0);
 
-        if (landmarkNums != previousNumLandmarks || m_slam == null) {
-            m_slam = new EKFSLAM(landmarkNums);
-            m_slam.seedLandmarks(landmarks);
-
-            m_visionSubsystem = new VisionSubsystem(
-                landmarks, 
-                new VisionIONorthstar("northstar1"), new VisionIONorthstar("northstar2"));
-
-            m_visionSubsystem.setPoseSupplier(m_slam::getRobotPose);
-            m_visionSubsystem.setVisionConsumer(this::visionConsumer);
+        if (newNumLandmarks != numLandmarks || m_slam == null) {
+            numLandmarks = newNumLandmarks;
+            Pose3d[] landmarks = landmarksSub.get(new Pose3d[0]);
+            reinitializeSLAM(numLandmarks, landmarks);
         }
 
-        previousNumLandmarks = landmarkNums;
-
+        chassisSpeeds = chassisSpeedsSub.get(new ChassisSpeeds());
         m_slam.predict(chassisSpeeds, 0.02);
 
         posePub.set(m_slam.getRobotPose());
         landmarksPub.set(m_slam.getLandmarkPoses());
+    }
+
+    private void reinitializeSLAM(int numLandmarks, Pose3d[] landmarks) {
+        m_slam = new EKFSLAM(numLandmarks);
+        m_slam.seedLandmarks(landmarks);
+
+        m_visionSubsystem = new VisionSubsystem(
+                landmarks,
+                new VisionIONorthstar("northstar1"),
+                new VisionIONorthstar("northstar2"));
+
+        m_visionSubsystem.setPoseSupplier(m_slam::getRobotPose);
+        m_visionSubsystem.setVisionConsumer(this::visionConsumer);
     }
 
     public void visionConsumer(List<TimestampVisionUpdate> visionUpdates) {
