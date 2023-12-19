@@ -1,5 +1,6 @@
 package com.team2383.SLAM.server.SLAM;
 
+import java.util.ArrayList;
 import java.util.function.BiFunction;
 
 import org.ejml.simple.SimpleMatrix;
@@ -50,6 +51,14 @@ public class EKFSLAM {
     private final boolean[] seenLandmarks;
 
     private boolean enabled = false;
+
+    private double correctTimeStamp = 0;
+
+    private double predictTimeStamp = 0;
+    private double previousPredictTimeStamp = 0;
+
+    private ArrayList<TimestampMu> muHistory = new ArrayList<TimestampMu>();
+    private ArrayList<TimestampSigma> sigmaHistory = new ArrayList<TimestampSigma>();
 
     /**
      * Constructs an EKFSLAM object.
@@ -139,6 +148,20 @@ public class EKFSLAM {
         }
     }
 
+    public void predictWithTimestamp(ChassisSpeeds speeds, double timeStamp) {
+        predictTimeStamp = timeStamp;
+
+        if (predictTimeStamp < correctTimeStamp) {
+            for (double i = correctTimeStamp; i < predictTimeStamp; i += 0.02) {
+                predict(speeds, 0.02);
+            }
+        } else {
+            predict(speeds, predictTimeStamp - previousPredictTimeStamp);
+        }
+
+        previousPredictTimeStamp = predictTimeStamp;
+    }
+
     /**
      * Extended Kalman filter prediction step.
      * <p>
@@ -160,7 +183,30 @@ public class EKFSLAM {
         SimpleMatrix G = SimpleMatrix.identity(63).plus(motion_model_jacobian.apply(u, mu));
         sigma = G.mult(sigma.mult(G.transpose())).plus(F_x.transpose().mult(R.mult(F_x)));
 
+        if (muHistory.size() > 50) {
+            muHistory.remove(0);
+        }
+        muHistory.add(new TimestampMu(predictTimeStamp, mu));
+
+        if (sigmaHistory.size() > 50) {
+            sigmaHistory.remove(0);
+        }
+
+        sigmaHistory.add(new TimestampSigma(predictTimeStamp, sigma));
+        
         return getPose(mu, 0);
+    }
+
+    public void correctWithTimestamp(Transform3d robotToTag, int landmarkIndex, double timeStamp) {
+        correctTimeStamp = timeStamp;
+
+        if (correctTimeStamp < predictTimeStamp) {
+            for (double i = predictTimeStamp; i < correctTimeStamp; i += 0.02) {
+                correct(robotToTag, landmarkIndex);
+            }
+        } else {
+            correct(robotToTag, landmarkIndex);
+        }
     }
 
     /**
@@ -221,6 +267,18 @@ public class EKFSLAM {
 
         mu = mu.plus(K.mult(subtractPose(z_obs, z_pred)));
         sigma = (SimpleMatrix.identity(K.getNumRows()).minus(K.mult(Hi))).mult(sigma);
+
+        if (muHistory.size() > 50) {
+            muHistory.remove(0);
+        }
+
+        muHistory.add(new TimestampMu(correctTimeStamp, mu));
+
+        if (sigmaHistory.size() > 50) {
+            sigmaHistory.remove(0);
+        }
+
+        sigmaHistory.add(new TimestampSigma(correctTimeStamp, sigma));
 
         Pose3d robotPose = getPose(mu, 0);
         return robotPose;
@@ -283,5 +341,11 @@ public class EKFSLAM {
         return new Pose3d(mu.get(0 + start), mu.get(1 + start), mu.get(2 + start),
                 new Rotation3d(
                         new Quaternion(mu.get(3 + start), mu.get(4 + start), mu.get(5 + start), mu.get(6 + start))));
+    }
+
+    public record TimestampMu(double timestamp, SimpleMatrix mu) {
+    }
+
+    public record TimestampSigma(double timestamp, SimpleMatrix sigma) {
     }
 }
