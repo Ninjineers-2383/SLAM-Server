@@ -4,7 +4,7 @@ import edu.wpi.first.math.geometry.Pose3d;
 
 public interface VisionIO {
     public static class VisionIOInputs {
-        public double[] timestamps = new double[] {};
+        public long[] timestamps = new long[] {};
         public double[][] frames = new double[][] {};
         public long fps = 0;
     }

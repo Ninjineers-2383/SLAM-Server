@@ -52,13 +52,14 @@ public class EKFSLAM {
 
     private boolean enabled = false;
 
-    private double correctTimeStamp = 0;
+    private long correctTimeStamp = 0;
 
-    private double predictTimeStamp = 0;
-    private double previousPredictTimeStamp = 0;
+    private long predictTimeStamp = 0;
+    private long previousPredictTimeStamp = 0;
 
     private ArrayList<TimestampMu> muHistory = new ArrayList<TimestampMu>();
     private ArrayList<TimestampSigma> sigmaHistory = new ArrayList<TimestampSigma>();
+    private ArrayList<TimestampChassisSpeed> chassisSpeedHistory = new ArrayList<TimestampChassisSpeed>();
 
     /**
      * Constructs an EKFSLAM object.
@@ -148,11 +149,11 @@ public class EKFSLAM {
         }
     }
 
-    public void predictWithTimestamp(ChassisSpeeds speeds, double timeStamp) {
+    public void predictWithTimestamp(ChassisSpeeds speeds, long timeStamp) {
         predictTimeStamp = timeStamp;
 
         if (predictTimeStamp < correctTimeStamp) {
-            for (double i = correctTimeStamp; i < predictTimeStamp; i += 0.02) {
+            for (double i = correctTimeStamp; i < predictTimeStamp; i += 1) {
                 predict(speeds, 0.02);
             }
         } else {
@@ -175,6 +176,12 @@ public class EKFSLAM {
      * @return the predicted pose of the robot
      */
     public Pose3d predict(ChassisSpeeds speeds, double dt) {
+        if (chassisSpeedHistory.size() > 50) {
+            chassisSpeedHistory.remove(0);
+        }
+
+        chassisSpeedHistory.add(new TimestampChassisSpeed(predictTimeStamp, speeds));
+
         SimpleMatrix u = new SimpleMatrix(3, 1, true,
                 speeds.vxMetersPerSecond * dt, speeds.vyMetersPerSecond * dt, speeds.omegaRadiansPerSecond * dt);
         SimpleMatrix R = SimpleMatrix.diag(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1);
@@ -197,7 +204,7 @@ public class EKFSLAM {
         return getPose(mu, 0);
     }
 
-    public void correctWithTimestamp(Transform3d robotToTag, int landmarkIndex, double timeStamp) {
+    public void correctWithTimestamp(Transform3d robotToTag, int landmarkIndex, long timeStamp) {
         correctTimeStamp = timeStamp;
 
         if (correctTimeStamp < predictTimeStamp) {
@@ -343,9 +350,12 @@ public class EKFSLAM {
                         new Quaternion(mu.get(3 + start), mu.get(4 + start), mu.get(5 + start), mu.get(6 + start))));
     }
 
-    public record TimestampMu(double timestamp, SimpleMatrix mu) {
+    public record TimestampMu(long timestamp, SimpleMatrix mu) {
     }
 
-    public record TimestampSigma(double timestamp, SimpleMatrix sigma) {
+    public record TimestampSigma(long timestamp, SimpleMatrix sigma) {
+    }
+
+    public record TimestampChassisSpeed(long timestamp, ChassisSpeeds speeds) {
     }
 }
