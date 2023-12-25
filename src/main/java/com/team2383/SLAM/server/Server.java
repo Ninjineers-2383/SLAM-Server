@@ -3,7 +3,6 @@ package com.team2383.SLAM.server;
 import java.util.List;
 
 import com.team2383.SLAM.server.SLAM.EKFSLAM;
-import com.team2383.SLAM.server.helpers.ChassisSpeedsStruct;
 import com.team2383.SLAM.server.vision.VisionIONorthstar;
 import com.team2383.SLAM.server.vision.VisionSubsystem;
 import com.team2383.SLAM.server.vision.VisionSubsystem.TimestampVisionUpdate;
@@ -43,7 +42,7 @@ public class Server {
 
         landmarksSub = table.getStructArrayTopic("landmarks", Pose3d.struct).subscribe(new Pose3d[0]);
         numLandmarksSub = table.getIntegerTopic("numLandmarks").subscribe(0);
-        chassisSpeedsSub = table.getStructTopic("chassisSpeeds", new ChassisSpeedsStruct())
+        chassisSpeedsSub = table.getStructTopic("chassisSpeeds", ChassisSpeeds.struct)
                 .subscribe(new ChassisSpeeds());
 
         posePub = table.getStructTopic("pose", Pose3d.struct).publish();
