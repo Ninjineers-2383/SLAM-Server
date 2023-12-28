@@ -30,6 +30,7 @@ nativeConfig.dependencies.add wpilibTools.deps.wpilibOpenCv("frc" + wpi.frcYear.
 dependencies {
     implementation wpilibTools.deps.wpilibJava("wpiutil")
     implementation wpilibTools.deps.wpilibJava("wpimath")
+    implementation wpilibTools.deps.wpilibJava("wpiunits")
     implementation wpilibTools.deps.wpilibJava("wpinet")
     implementation wpilibTools.deps.wpilibJava("ntcore")
     implementation wpilibTools.deps.wpilibJava("cscore")
@@ -42,6 +43,10 @@ dependencies {
 
     implementation group: "org.ejml", name: "ejml-simple", version: wpi.versions.ejmlVersion.get()
     implementation group: "us.hebi.quickbuf", name: "quickbuf-runtime", version: wpi.versions.quickbufVersion.get();
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter-params:5.8.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
 }
 
 shadowJar {
@@ -53,4 +58,9 @@ shadowJar {
 
 wrapper {
     gradleVersion = '8.4'
+}
+
+test {
+    useJUnitPlatform()
+    systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
 }

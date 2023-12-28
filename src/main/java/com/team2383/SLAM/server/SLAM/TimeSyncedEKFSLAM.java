@@ -4,6 +4,8 @@ import java.util.function.BiFunction;
 
 import org.ejml.simple.SimpleMatrix;
 
+import com.team2383.SLAM.server.SLAM.buffer.EKFSLAMBuffer;
+
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Quaternion;
 import edu.wpi.first.math.geometry.Rotation3d;
@@ -22,7 +24,7 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
  * The state vector is augmented with the pose of each landmark in the
  * environment.
  */
-public class EKFSLAM {
+public class TimeSyncedEKFSLAM {
     // 7 x n matrix that maps the robot state to the full state vector.
     private final SimpleMatrix F_x;
 
@@ -51,13 +53,15 @@ public class EKFSLAM {
 
     private boolean enabled = false;
 
+    private EKFSLAMBuffer buffer = new EKFSLAMBuffer();
+
     /**
      * Constructs an EKFSLAM object.
      *
      * @param numLandmarks
      *            the number of landmarks in the environment
      */
-    public EKFSLAM(int numLandmarks) {
+    public TimeSyncedEKFSLAM(int numLandmarks) {
         // Construct F_x matrix with 1s on the left block diagonal
         F_x = new SimpleMatrix(7, (numLandmarks + 1) * 7);
         for (int i = 0; i < 7; i++) {
@@ -139,6 +143,14 @@ public class EKFSLAM {
         }
     }
 
+    public void addDriveOdometryMeasurement(ChassisSpeeds speeds, double timestamp) {
+        // if (!buffer.chunkArray[0].isComplete()) {
+        //     buffer.addEntry(new EKFSLAMBuffer.EKFSLAMBufferEntry(mu, sigma, speeds, null, -1, timestamp), 0);
+        // } else {
+        //     buffer.addEntry(new EKFSLAMBuffer.EKFSLAMBufferEntry(mu, sigma, speeds, null, -1, timestamp), 1);
+        // }
+
+    }
     /**
      * Extended Kalman filter prediction step.
      * <p>
@@ -151,14 +163,14 @@ public class EKFSLAM {
      *            the time elapsed since the last call to predict()
      * @return the predicted pose of the robot
      */
-    public Pose3d predict(ChassisSpeeds speeds, double dt) {
+    public Pose3d predict(ChassisSpeeds speeds, double dt, SimpleMatrix previousMu, SimpleMatrix previousSigma) {
         SimpleMatrix u = new SimpleMatrix(3, 1, true,
                 speeds.vxMetersPerSecond * dt, speeds.vyMetersPerSecond * dt, speeds.omegaRadiansPerSecond * dt);
         SimpleMatrix R = SimpleMatrix.diag(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1);
 
-        mu = mu.plus(motion_model.apply(u, mu));
+        mu = previousMu.plus(motion_model.apply(u, mu));
         SimpleMatrix G = SimpleMatrix.identity(63).plus(motion_model_jacobian.apply(u, mu));
-        sigma = G.mult(sigma.mult(G.transpose())).plus(F_x.transpose().mult(R.mult(F_x)));
+        sigma = G.mult(previousSigma.mult(G.transpose())).plus(F_x.transpose().mult(R.mult(F_x)));
 
         return getPose(mu, 0);
     }

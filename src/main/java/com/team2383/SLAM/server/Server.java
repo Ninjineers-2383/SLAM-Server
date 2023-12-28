@@ -60,7 +60,6 @@ public class Server {
         }
 
         chassisSpeeds = chassisSpeedsSub.get(new ChassisSpeeds());
-        m_slam.predictWithTimestamp(chassisSpeeds, chassisSpeedsSub.readQueue()[-1].timestamp);
 
         posePub.set(m_slam.getRobotPose());
         landmarksPub.set(m_slam.getLandmarkPoses());
@@ -93,7 +92,6 @@ public class Server {
             Pose3d tagPose = pose.plus(update.pose());
             seenLandmarks[i] = tagPose;
 
-            m_slam.correctWithTimestamp(update.pose(), update.tagId() - 1, update.timestamp());
             i++;
         }
 
