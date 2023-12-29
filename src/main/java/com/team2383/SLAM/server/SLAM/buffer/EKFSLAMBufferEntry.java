@@ -8,26 +8,25 @@ import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 
 public class EKFSLAMBufferEntry {
-        public SimpleMatrix mu;
-        public SimpleMatrix sigma;
-        public Optional<ChassisSpeeds> speeds;
-        public Optional<Transform3d> robotToTag;
-        public Optional<Integer> landmarkIndex;
-        public double timestamp;
+        public Optional<SimpleMatrix> mu;
+        public Optional<SimpleMatrix> sigma;
+        public final Optional<ChassisSpeeds> speeds;
+        public final Optional<Transform3d> robotToTag;
+        public final Optional<Integer> landmarkIndex;
+        public final double timestamp;
 
-        public EKFSLAMBufferEntry(SimpleMatrix mu, SimpleMatrix sigma, ChassisSpeeds speeds, double timestamp) {
-            this.mu = mu;
-            this.sigma = sigma;
+        public EKFSLAMBufferEntry(ChassisSpeeds speeds, double timestamp) {
+            this.mu = Optional.empty();
+            this.sigma = Optional.empty();
             this.speeds = Optional.of(speeds);
             this.robotToTag = Optional.empty();
             this.landmarkIndex = Optional.empty();
             this.timestamp = timestamp;
         }
 
-        public EKFSLAMBufferEntry(SimpleMatrix mu, SimpleMatrix sigma, 
-            Transform3d robotToTag, Integer landmarkIndex, double timestamp) {
-            this.mu = mu;
-            this.sigma = sigma;
+        public EKFSLAMBufferEntry(Transform3d robotToTag, Integer landmarkIndex, double timestamp) {
+            this.mu = Optional.empty();
+            this.sigma = Optional.empty();
             this.speeds = Optional.empty();
             this.robotToTag = Optional.of(robotToTag);
             this.landmarkIndex = Optional.of(landmarkIndex);
@@ -40,5 +39,10 @@ public class EKFSLAMBufferEntry {
 
         public boolean isVisionEntry() {
             return robotToTag.isPresent() && landmarkIndex.isPresent();
+        }
+
+        public void updateMuAndSigma(SimpleMatrix mu, SimpleMatrix sigma) {
+            this.mu = Optional.of(mu);
+            this.sigma = Optional.of(sigma);
         }
     }
