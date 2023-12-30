@@ -6,6 +6,7 @@ import org.ejml.simple.SimpleMatrix;
 
 import com.team2383.SLAM.server.SLAM.buffer.EKFSLAMBuffer;
 import com.team2383.SLAM.server.SLAM.buffer.EKFSLAMBufferEntry;
+import com.team2383.SLAM.server.SLAM.buffer.EKFSLAMState;
 
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Quaternion;
@@ -44,24 +45,26 @@ public class TimeSyncedEKFSLAM {
     // state vector of the robot and landmark.
     private final BiFunction<SimpleMatrix, SimpleMatrix, SimpleMatrix> sensor_model_jacobian;
 
+    private final Pose3d[] initialLandmarkPoses;
+
     // Keeps track of which landmarks have been seen
     private final boolean[] seenLandmarks;
 
     private boolean enabled = false;
 
-    private EKFSLAMBuffer buffer = new EKFSLAMBuffer();
+    private final EKFSLAMBuffer buffer;
 
     private final int numLandmarks;
-    private final Pose3d initialPose;
-    private final Pose3d[] initialLandmarkPoses;
 
     /**
      * Constructs an EKFSLAM object.
      *
      * @param numLandmarks
-     *            the number of landmarks in the environment
+     *                     the number of landmarks in the environment
      */
-    public TimeSyncedEKFSLAM(int numLandmarks, Pose3d initialPose, Pose3d[] initialLandmarkPoses) {
+    public TimeSyncedEKFSLAM(int numLandmarks, Pose3d[] initialLandmarkPoses) {
+        this.buffer = new EKFSLAMBuffer(this::getInitialState);
+
         // Construct F_x matrix with 1s on the left block diagonal
         F_x = new SimpleMatrix(7, (numLandmarks + 1) * 7);
         for (int i = 0; i < 7; i++) {
@@ -69,7 +72,6 @@ public class TimeSyncedEKFSLAM {
         }
 
         this.numLandmarks = numLandmarks;
-        this.initialPose = initialPose;
         this.initialLandmarkPoses = initialLandmarkPoses;
 
         // Initialize motion model and sensor model
@@ -93,7 +95,7 @@ public class TimeSyncedEKFSLAM {
      * constructed.
      * 
      * @param landmarks
-     *            an array of poses of the landmarks in the environment
+     *                  an array of poses of the landmarks in the environment
      */
     public SimpleMatrix seedLandmarks(SimpleMatrix mu, Pose3d[] landmarks) {
         for (int i = 0; i < landmarks.length; i++) {
@@ -130,7 +132,14 @@ public class TimeSyncedEKFSLAM {
         return enabled;
     }
 
-    private SimpleMatrix initialMu() {
+    public EKFSLAMState getInitialState(EKFSLAMBufferEntry entry) {
+        Pose3d initialPose = initialLandmarkPoses[entry.visionResult.get().landmarkIndex()]
+                .plus(entry.visionResult.get().robotToTag().inverse());
+
+        return new EKFSLAMState(initialMu(initialPose), initialSigma());
+    }
+
+    private SimpleMatrix initialMu(Pose3d initialPose) {
         // Initialize empty state vector
         SimpleMatrix mu = new SimpleMatrix(7 * (numLandmarks + 1), 1);
         // Set 0 rotation quaternion
@@ -154,35 +163,52 @@ public class TimeSyncedEKFSLAM {
     }
 
     public void addDriveOdometryMeasurement(ChassisSpeeds speeds, double timestamp) {
-        // If the buffer is empty use initial mu and sigma matrices
+        // If the buffer is empty do not add the entry
         if (buffer.isEmpty()) {
-            buffer.addSpeedsEntry(new EKFSLAMBufferEntry(speeds, timestamp));
-            buffer.get(0).updateMuAndSigma(initialMu(), initialSigma());
+            return;
         }
 
-        // If there is a complete chunk in the buffer, update the mu and sigma matrices in the chunk using the given vision information
-        if (buffer.hasSecondSpeedsEntry()) {
-           updateChunk();
-        }
-        
         // Add the entry
         buffer.addSpeedsEntry(new EKFSLAMBufferEntry(speeds, timestamp));
-    }
 
-    public void updateChunk() {
-        int secondSpeedsIndex = buffer.getSecondSpeedsIndex();
-
-        for (int i = 1; i < secondSpeedsIndex; i++) {
-            double deltaTime = buffer.get(i).timestamp - buffer.get(i-1).timestamp;
-
-            predict(buffer.interpolateSpeeds(i), deltaTime, buffer.get(i - 1).mu.get(), buffer.get(i - 1).sigma.get(), i);
-            correct(buffer.get(i).robotToTag.get(), buffer.get(i).landmarkIndex.get(), buffer.get(i).mu.get(), buffer.get(i).sigma.get(), i);
-        }
+        // Try to update the chunk
+        updateChunk();
 
     }
 
     public void addVisionMeasurement(Transform3d robotToTag, int landmarkIndex, double timestamp) {
         buffer.addVisionEntry(new EKFSLAMBufferEntry(robotToTag, landmarkIndex, timestamp));
+
+        updateChunk();
+    }
+
+    public void updateChunk() {
+        // If the buffer is empty do not update the chunk
+        if (buffer.isEmpty()) {
+            return;
+        }
+
+        // If the earliest unprocessed entry is not followed by a speeds entry, do not
+        // update the chunk
+        int earliestEmptyState = buffer.getEarliestEmptyState();
+
+        int secondSpeedsIndex = buffer.getSecondSpeedsIndex();
+
+        if (earliestEmptyState > secondSpeedsIndex) {
+            return;
+        }
+
+        for (int i = 1; i <= secondSpeedsIndex; i++) {
+            double deltaTime = buffer.get(i).timestamp - buffer.get(i - 1).timestamp;
+
+            predict(buffer.interpolateSpeeds(i), deltaTime, buffer.get(i - 1).state.get().mu(),
+                    buffer.get(i - 1).state.get().sigma(),
+                    i);
+            correct(buffer.get(i).visionResult.get().robotToTag(), buffer.get(i).visionResult.get().landmarkIndex(),
+                    buffer.get(i).state.get().mu(),
+                    buffer.get(i).state.get().sigma(), i);
+        }
+
     }
 
     /**
@@ -192,12 +218,13 @@ public class TimeSyncedEKFSLAM {
      * control input.
      * 
      * @param speeds
-     *            the robot's control input
+     *               the robot's control input
      * @param dt
-     *            the time elapsed since the last call to predict()
+     *               the time elapsed since the last call to predict()
      * @return the predicted pose of the robot
      */
-    public Pose3d predict(ChassisSpeeds speeds, double dt, SimpleMatrix previousMu, SimpleMatrix previousSigma, int index) {
+    public Pose3d predict(ChassisSpeeds speeds, double dt, SimpleMatrix previousMu, SimpleMatrix previousSigma,
+            int index) {
         SimpleMatrix u = new SimpleMatrix(3, 1, true,
                 speeds.vxMetersPerSecond * dt, speeds.vyMetersPerSecond * dt, speeds.omegaRadiansPerSecond * dt);
         SimpleMatrix R = SimpleMatrix.diag(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1);
@@ -206,7 +233,7 @@ public class TimeSyncedEKFSLAM {
         SimpleMatrix G = SimpleMatrix.identity(63).plus(motion_model_jacobian.apply(u, previousMu));
         SimpleMatrix sigmaHat = G.mult(previousSigma.mult(G.transpose())).plus(F_x.transpose().mult(R.mult(F_x)));
 
-        buffer.get(index).updateMuAndSigma(muHat, sigmaHat);;
+        buffer.get(index).updateMuAndSigma(muHat, sigmaHat);
 
         return getPose(muHat, 0);
     }
@@ -218,12 +245,13 @@ public class TimeSyncedEKFSLAM {
      * observation of a landmark.
      * 
      * @param robotToTag
-     *            the robot's observation of the landmark
+     *                      the robot's observation of the landmark
      * @param landmarkIndex
-     *            the index of the landmark in the state vector
+     *                      the index of the landmark in the state vector
      * @return the corrected pose of the robot
      */
-    public Pose3d correct(Transform3d robotToTag, int landmarkIndex, SimpleMatrix muHat, SimpleMatrix sigmaHat, int index) {
+    public Pose3d correct(Transform3d robotToTag, int landmarkIndex, SimpleMatrix muHat, SimpleMatrix sigmaHat,
+            int index) {
         if (!enabled) {
             return getRobotPose();
         }
@@ -270,7 +298,8 @@ public class TimeSyncedEKFSLAM {
         SimpleMatrix mu = muHat.plus(K.mult(subtractPose(z_obs, z_pred)));
         SimpleMatrix sigma = (SimpleMatrix.identity(K.getNumRows()).minus(K.mult(Hi))).mult(sigmaHat);
 
-        buffer.get(index).updateMuAndSigma(mu, sigma);;
+        buffer.get(index).updateMuAndSigma(mu, sigma);
+        ;
 
         return getPose(mu, 0);
     }
@@ -281,18 +310,18 @@ public class TimeSyncedEKFSLAM {
      * @return the pose of the robot
      */
     public Pose3d getRobotPose() {
-        return getPose(getMu(), 0);
+        return getPose(getLatestMu(), 0);
     }
 
     /**
      * Returns the pose of a landmark.
      * 
      * @param landmarkIndex
-     *            the index of the landmark in the state vector
+     *                      the index of the landmark in the state vector
      * @return the pose of the landmark
      */
     public Pose3d getLandmarkPose(int landmarkIndex) {
-        return getPose(getMu(), 7 * (landmarkIndex + 1));
+        return getPose(getLatestMu(), 7 * (landmarkIndex + 1));
     }
 
     /**
@@ -301,20 +330,23 @@ public class TimeSyncedEKFSLAM {
      * @return the poses of all landmarks
      */
     public Pose3d[] getLandmarkPoses() {
-        Pose3d[] poses = new Pose3d[(getMu().getNumRows() - 7) / 7];
+        Pose3d[] poses = new Pose3d[(getLatestMu().getNumRows() - 7) / 7];
         for (int i = 0; i < poses.length; i++) {
-            poses[i] = getPose(getMu(), 7 * (i + 1));
+            poses[i] = getPose(getLatestMu(), 7 * (i + 1));
         }
         return poses;
     }
 
-    
-    public SimpleMatrix getMu() {
-        if (buffer.getLatestMu().isPresent()) {
-            return buffer.getLatestMu().get();
+    public EKFSLAMState getLatestState() {
+        if (buffer.getEarliestEmptyState() == 0) {
+            return new EKFSLAMState(null, null);
         } else {
-            return initialMu();
+            return buffer.get(buffer.getEarliestEmptyState() - 1).state.get();
         }
+    }
+
+    public SimpleMatrix getLatestMu() {
+        return getLatestState().mu();
     }
 
     /**
@@ -322,12 +354,8 @@ public class TimeSyncedEKFSLAM {
      * 
      * @return the covariance matrix: sigma
      */
-    public SimpleMatrix getCovariance() {
-        if (buffer.getLatestSigma().isPresent()) {
-            return buffer.getLatestSigma().get();
-        } else {
-            return initialSigma();
-        }
+    public SimpleMatrix getLatestSigma() {
+        return getLatestState().sigma();
     }
 
     private SimpleMatrix subtractPose(SimpleMatrix A, SimpleMatrix B) {
