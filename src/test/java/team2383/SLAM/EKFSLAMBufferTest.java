@@ -1,9 +1,12 @@
 package team2383.SLAM;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import org.junit.jupiter.api.Test;
 
 import com.team2383.SLAM.server.SLAM.buffer.EKFSLAMBuffer;
 import com.team2383.SLAM.server.SLAM.buffer.EKFSLAMBufferEntry;
+import com.team2383.SLAM.server.SLAM.buffer.EKFSLAMState;
 
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
@@ -12,94 +15,126 @@ public class EKFSLAMBufferTest {
 
     @Test
     public void testVisionEntryOnEmptyBuffer() {
-        EKFSLAMBuffer buffer = new EKFSLAMBuffer();
+        EKFSLAMBuffer buffer = new EKFSLAMBuffer((entry) -> {
+            assert (entry.isVisionEntry());
+
+            return new EKFSLAMState(null, null);
+        });
 
         buffer.addVisionEntry(createVisionEntry(0));
 
-        assert(buffer.isEmpty());
-    }   
+        assertEquals(2, buffer.size());
+        assertEquals(0, buffer.get(0).timestamp);
+        assertEquals(0, buffer.get(1).timestamp);
+        assert (buffer.get(0).isSpeedsEntry());
+        assert (buffer.get(1).isVisionEntry());
+        assert (buffer.get(0).state.isPresent());
+        assert (!buffer.get(1).state.isPresent());
+    }
 
     @Test
-    public void testOldVisionEntry() {
-        EKFSLAMBuffer buffer = new EKFSLAMBuffer();
+    public void testInitialSpeedsEntry() {
+        EKFSLAMBuffer buffer = new EKFSLAMBuffer(this::createInitialState);
 
         buffer.addSpeedsEntry(createSpeedsEntry(1));
         buffer.addVisionEntry(createVisionEntry(0));
 
-        assert(buffer.size() == 1);
+        assertEquals(2, buffer.size());
+        assertEquals(0, buffer.get(0).timestamp);
+        assertEquals(0, buffer.get(1).timestamp);
+        assert (buffer.get(0).isSpeedsEntry());
+        assert (buffer.get(1).isVisionEntry());
+        assert (buffer.get(0).state.isPresent());
+        assert (!buffer.get(1).state.isPresent());
     }
 
     @Test
     public void testNewVisionEntry() {
-        EKFSLAMBuffer buffer = new EKFSLAMBuffer();
+        EKFSLAMBuffer buffer = new EKFSLAMBuffer(this::createInitialState);
 
-        buffer.addSpeedsEntry(createSpeedsEntry(0));
+        buffer.addVisionEntry(createVisionEntry(0));
+
         buffer.addVisionEntry(createVisionEntry(1));
 
-        assert(buffer.get(0).timestamp == 0);
-        assert(buffer.get(1).timestamp == 1);
+        assertEquals(0, buffer.get(0).timestamp);
+        assert (buffer.get(0).isSpeedsEntry());
+        assertEquals(0, buffer.get(1).timestamp);
+        assert (buffer.get(1).isVisionEntry());
+        assertEquals(1, buffer.get(2).timestamp);
+        assert (buffer.get(2).isVisionEntry());
     }
 
     @Test
     public void testVisionEntryPlacement() {
-        EKFSLAMBuffer buffer = new EKFSLAMBuffer();
+        EKFSLAMBuffer buffer = new EKFSLAMBuffer(this::createInitialState);
 
-        buffer.addSpeedsEntry(createSpeedsEntry(0));
         buffer.addVisionEntry(createVisionEntry(1));
         buffer.addSpeedsEntry(createSpeedsEntry(3));
         buffer.addVisionEntry(createVisionEntry(2));
 
-        assert(buffer.get(0).timestamp == 0);
-        assert(buffer.get(1).timestamp == 1);
-        assert(buffer.get(2).timestamp == 2);
-        assert(buffer.get(3).timestamp == 3);
+        assertEquals(1, buffer.get(0).timestamp);
+        assert (buffer.get(0).isSpeedsEntry());
+        assertEquals(1, buffer.get(1).timestamp);
+        assert (buffer.get(1).isVisionEntry());
+        assertEquals(2, buffer.get(2).timestamp);
+        assert (buffer.get(2).isVisionEntry());
+        assertEquals(3, buffer.get(3).timestamp);
+        assert (buffer.get(3).isSpeedsEntry());
     }
 
     @Test
     public void testOldSpeedsEntry() {
-        EKFSLAMBuffer buffer = new EKFSLAMBuffer();
+        EKFSLAMBuffer buffer = new EKFSLAMBuffer(this::createInitialState);
 
-        buffer.addSpeedsEntry(createSpeedsEntry(2));
+        buffer.addVisionEntry(createVisionEntry(2));
         buffer.addSpeedsEntry(createVisionEntry(1));
 
-        assert(buffer.size() == 1);
+        assertEquals(2, buffer.size());
+        assertEquals(2, buffer.get(0).timestamp);
+        assert (buffer.get(0).isSpeedsEntry());
+        assertEquals(2, buffer.get(1).timestamp);
+        assert (buffer.get(1).isVisionEntry());
     }
 
     @Test
     public void testOldSecondSpeedsEntry() {
-        EKFSLAMBuffer buffer = new EKFSLAMBuffer();
+        EKFSLAMBuffer buffer = new EKFSLAMBuffer(this::createInitialState);
 
-        buffer.addSpeedsEntry(createSpeedsEntry(0));
+        buffer.addVisionEntry(createVisionEntry(0));
+
         buffer.addSpeedsEntry(createSpeedsEntry(2));
+
         buffer.addSpeedsEntry(createSpeedsEntry(1));
 
-        assert(buffer.size() == 2);
+        assertEquals(3, buffer.size());
     }
 
     @Test
-    public void testIntermideateSpeedsEntry() {
-        EKFSLAMBuffer buffer = new EKFSLAMBuffer();
+    public void testIntermediateSpeedsEntry() {
+        EKFSLAMBuffer buffer = new EKFSLAMBuffer(this::createInitialState);
 
-        buffer.addSpeedsEntry(createSpeedsEntry(0));
+        buffer.addVisionEntry(createVisionEntry(0));
         buffer.addVisionEntry(createVisionEntry(2));
         buffer.addSpeedsEntry(createSpeedsEntry(1));
 
-        assert(buffer.get(0).timestamp == 0);
-        assert(buffer.get(1).timestamp == 1);
-        assert(buffer.get(2).timestamp == 2);
+        assertEquals(0, buffer.get(0).timestamp);
+        assertEquals(0, buffer.get(1).timestamp);
+        assertEquals(1, buffer.get(2).timestamp);
+        assertEquals(2, buffer.get(3).timestamp);
     }
 
     @Test
-    public void testRefreshBuffer() {
-        EKFSLAMBuffer buffer = new EKFSLAMBuffer();
+    public void testClearBuffer() {
+        EKFSLAMBuffer buffer = new EKFSLAMBuffer(this::createInitialState);
 
-        buffer.addSpeedsEntry(createSpeedsEntry(0));
+        buffer.addVisionEntry(createVisionEntry(0));
         buffer.addSpeedsEntry(createSpeedsEntry(1));
         buffer.addSpeedsEntry(createSpeedsEntry(2));
 
-        assert(buffer.size() == 2);
-        assert(buffer.get(0).timestamp == 1);
-        assert(buffer.get(1).timestamp == 2);
+        assertEquals(2, buffer.size());
+
+        assertEquals(1, buffer.get(0).timestamp);
+        assertEquals(2, buffer.get(1).timestamp);
     }
 
     public EKFSLAMBufferEntry createVisionEntry(double timestamp) {
@@ -108,5 +143,9 @@ public class EKFSLAMBufferTest {
 
     public EKFSLAMBufferEntry createSpeedsEntry(double timestamp) {
         return new EKFSLAMBufferEntry(new ChassisSpeeds(), timestamp);
+    }
+
+    private EKFSLAMState createInitialState(EKFSLAMBufferEntry entry) {
+        return new EKFSLAMState(null, null);
     }
 }

@@ -20,7 +20,7 @@ public class EKFSLAMBuffer {
         // initialize the SLAM system with the first measurements
         if (isEmpty()) {
             EKFSLAMBufferEntry initialSpeedsEntry = new EKFSLAMBufferEntry(new ChassisSpeeds(), entry.timestamp);
-            initialSpeedsEntry.updateMuAndSigma(getInitialSLAMState.apply(initialSpeedsEntry));
+            initialSpeedsEntry.updateMuAndSigma(getInitialSLAMState.apply(entry));
             buffer.add(initialSpeedsEntry);
             buffer.add(entry);
             speedsCounter = 1;
@@ -68,11 +68,18 @@ public class EKFSLAMBuffer {
                 return;
             }
 
-            // If this speeds entry is newer than the newest speeds entry we need to add it
-            // to the SLAM buffer at the correct index and
+            if (buffer.get(buffer.size() - 1).timestamp < entry.timestamp) {
+                buffer.add(entry);
+                speedsCounter++;
+                clearBuffer();
+                return;
+            }
+
+            // If this speeds entry is between two entries, add it between them
             for (int i = 0; i < buffer.size() - 1; i++) {
                 if (entry.timestamp > buffer.get(i).timestamp && entry.timestamp < buffer.get(i + 1).timestamp) {
                     buffer.add(i + 1, entry);
+                    speedsCounter++;
                     clearBuffer();
                     return;
                 }
