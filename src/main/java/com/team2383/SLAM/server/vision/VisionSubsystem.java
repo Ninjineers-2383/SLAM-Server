@@ -41,7 +41,7 @@ public class VisionSubsystem {
         List<TimestampVisionUpdate> updates = new ArrayList<>();
         for (int i = 0; i < inputs.length; i++) {
             for (int j = 0; j < inputs[i].frames.length; j++) {
-                long timestamp = inputs[i].timestamps[j];
+                double timestamp = inputs[i].timestamps[j];
                 double[] values = inputs[i].frames[j];
 
                 switch ((int) values[0]) {
@@ -91,7 +91,7 @@ public class VisionSubsystem {
     }
 
     /** Represents a single vision pose */
-    public static record TimestampVisionUpdate(long timestamp, Transform3d pose, int tagId) {
+    public static record TimestampVisionUpdate(double timestamp, Transform3d pose, int tagId) {
     }
 
 }

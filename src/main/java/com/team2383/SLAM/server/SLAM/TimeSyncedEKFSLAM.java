@@ -204,9 +204,11 @@ public class TimeSyncedEKFSLAM {
             predict(buffer.interpolateSpeeds(i), deltaTime, buffer.get(i - 1).state.get().mu(),
                     buffer.get(i - 1).state.get().sigma(),
                     i);
-            correct(buffer.get(i).visionResult.get().robotToTag(), buffer.get(i).visionResult.get().landmarkIndex(),
-                    buffer.get(i).state.get().mu(),
-                    buffer.get(i).state.get().sigma(), i);
+            if (buffer.get(i).isVisionEntry()) {
+                correct(buffer.get(i).visionResult.get().robotToTag(), buffer.get(i).visionResult.get().landmarkIndex(),
+                        buffer.get(i).state.get().mu(),
+                        buffer.get(i).state.get().sigma(), i);
+            }
         }
 
     }
@@ -230,7 +232,7 @@ public class TimeSyncedEKFSLAM {
         SimpleMatrix R = SimpleMatrix.diag(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1);
 
         SimpleMatrix muHat = previousMu.plus(motion_model.apply(u, previousMu));
-        SimpleMatrix G = SimpleMatrix.identity(63).plus(motion_model_jacobian.apply(u, previousMu));
+        SimpleMatrix G = SimpleMatrix.identity((numLandmarks + 1) * 7).plus(motion_model_jacobian.apply(u, previousMu));
         SimpleMatrix sigmaHat = G.mult(previousSigma.mult(G.transpose())).plus(F_x.transpose().mult(R.mult(F_x)));
 
         buffer.get(index).updateMuAndSigma(muHat, sigmaHat);
@@ -299,7 +301,6 @@ public class TimeSyncedEKFSLAM {
         SimpleMatrix sigma = (SimpleMatrix.identity(K.getNumRows()).minus(K.mult(Hi))).mult(sigmaHat);
 
         buffer.get(index).updateMuAndSigma(mu, sigma);
-        ;
 
         return getPose(mu, 0);
     }
@@ -330,6 +331,9 @@ public class TimeSyncedEKFSLAM {
      * @return the poses of all landmarks
      */
     public Pose3d[] getLandmarkPoses() {
+        if (getLatestMu() == null) {
+            return null;
+        }
         Pose3d[] poses = new Pose3d[(getLatestMu().getNumRows() - 7) / 7];
         for (int i = 0; i < poses.length; i++) {
             poses[i] = getPose(getLatestMu(), 7 * (i + 1));
@@ -370,6 +374,9 @@ public class TimeSyncedEKFSLAM {
     }
 
     private Pose3d getPose(SimpleMatrix mu, int start) {
+        if (mu == null) {
+            return null;
+        }
         return new Pose3d(mu.get(0 + start), mu.get(1 + start), mu.get(2 + start),
                 new Rotation3d(
                         new Quaternion(mu.get(3 + start), mu.get(4 + start), mu.get(5 + start), mu.get(6 + start))));

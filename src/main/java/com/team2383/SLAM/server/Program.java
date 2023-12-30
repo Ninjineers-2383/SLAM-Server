@@ -24,7 +24,8 @@ public class Program {
 
         CombinedRuntimeLoader.loadLibraries(Program.class, "wpiutiljni", "wpimathjni", "ntcorejni", "cscorejni");
 
-        NetworkTableInstance.getDefault().setServer(new String[] {"10.99.83.2", "127.0.0.1"}, new int[] {0, 0});
+        NetworkTableInstance.getDefault().setServer(new String[] { "10.99.83.2", "127.0.0.1" }, new int[] { 0, 0 });
+        NetworkTableInstance.getDefault().startClient4("SLAM-server");
         Server server = new Server();
 
         while (true) {

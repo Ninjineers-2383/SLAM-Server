@@ -109,7 +109,7 @@ public class EKFSLAMBuffer {
         for (int i = 0; i < secondSpeedsIndex; i++) {
             buffer.remove(0);
         }
-
+        speedsCounter--;
     }
 
     public int size() {
