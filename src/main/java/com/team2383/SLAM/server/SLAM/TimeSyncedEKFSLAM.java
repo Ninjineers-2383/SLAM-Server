@@ -114,7 +114,7 @@ public class TimeSyncedEKFSLAM {
         return mu;
     }
 
-    public SimpleMatrix setInitialRobotPose(SimpleMatrix mu, Pose3d pose) {
+    private SimpleMatrix setInitialRobotPose(SimpleMatrix mu, Pose3d pose) {
         mu.set(0, pose.getTranslation().getX());
         mu.set(1, pose.getTranslation().getY());
         mu.set(2, pose.getTranslation().getZ());

@@ -22,6 +22,10 @@ public class VisionSubsystem {
 
     private Pose3d[] tagPoses;
 
+    private Transform3d[] camTransforms;
+    // private double varianceScale;
+    // private double varianceStatic;
+
     public VisionSubsystem(Pose3d[] tagPoses, VisionIO... visionIO) {
         this.tagPoses = tagPoses;
         this.visionIO = visionIO;
@@ -42,6 +46,7 @@ public class VisionSubsystem {
         for (int i = 0; i < inputs.length; i++) {
             for (int j = 0; j < inputs[i].frames.length; j++) {
                 double timestamp = inputs[i].timestamps[j];
+
                 double[] values = inputs[i].frames[j];
 
                 switch ((int) values[0]) {
@@ -69,10 +74,10 @@ public class VisionSubsystem {
 
                         if (error1 < error2) {
                             updates.add(new TimestampVisionUpdate(timestamp,
-                                    VisionConstants.camTransforms[i].plus(transform1), tag));
+                                    camTransforms[i].plus(transform1), tag));
                         } else {
                             updates.add(new TimestampVisionUpdate(timestamp,
-                                    VisionConstants.camTransforms[i].plus(transform2), tag));
+                                    camTransforms[i].plus(transform2), tag));
                         }
                         break;
                 }
@@ -80,6 +85,12 @@ public class VisionSubsystem {
         }
 
         visionConsumer.accept(updates);
+    }
+
+    public void setVisionConstants(Transform3d[] camTransforms, double varianceScale, double varianceStatic) {
+        this.camTransforms = camTransforms;
+        // this.varianceScale = varianceScale;
+        // this.varianceStatic = varianceStatic;
     }
 
     public void setVisionConsumer(Consumer<List<TimestampVisionUpdate>> consumer) {

@@ -8,11 +8,12 @@ import com.team2383.SLAM.server.vision.VisionSubsystem;
 import com.team2383.SLAM.server.vision.VisionSubsystem.TimestampVisionUpdate;
 
 import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.networktables.IntegerSubscriber;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.networktables.PubSub;
 import edu.wpi.first.networktables.PubSubOption;
 import edu.wpi.first.networktables.StructArrayPublisher;
 import edu.wpi.first.networktables.StructArraySubscriber;
@@ -31,6 +32,10 @@ public class Server {
     private StructArraySubscriber<Pose3d> landmarksSub;
     private StructSubscriber<ChassisSpeeds> chassisSpeedsSub;
 
+    private final StructArraySubscriber<Transform3d> camTransformsSub;
+    private final DoubleSubscriber varianceScaleSub;
+    private final DoubleSubscriber varianceStaticSub;
+
     private StructPublisher<Pose3d> posePub;
     private StructArrayPublisher<Pose3d> landmarksPub;
     private StructArrayPublisher<Pose3d> seenLandmarksPub;
@@ -44,6 +49,10 @@ public class Server {
         chassisSpeedsSub = table.getStructTopic("chassisSpeeds", ChassisSpeeds.struct)
                 .subscribe(new ChassisSpeeds(), PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
 
+        camTransformsSub = table.getStructArrayTopic("camTransforms", Transform3d.struct).subscribe(new Transform3d[0]);
+        varianceScaleSub = table.getDoubleTopic("varianceScale").subscribe(0);
+        varianceStaticSub = table.getDoubleTopic("varianceStatic").subscribe(0);
+
         posePub = table.getStructTopic("pose", Pose3d.struct).publish();
         landmarksPub = table.getStructArrayTopic("landmarks", Pose3d.struct).publish();
         seenLandmarksPub = table.getStructArrayTopic("seenLandmarks", Pose3d.struct).publish();
@@ -54,7 +63,7 @@ public class Server {
     public void loop() {
         TimestampedInteger[] newNumLandmarks = numLandmarksSub.readQueue();
 
-        if (newNumLandmarks.length != 0) {
+         if (newNumLandmarks.length != 0) {
             numLandmarks = (int) newNumLandmarks[newNumLandmarks.length - 1].value;
             Pose3d[] landmarks = landmarksSub.get(new Pose3d[0]);
             reinitializeSLAM(numLandmarks, landmarks);
@@ -79,10 +88,13 @@ public class Server {
 
         m_visionSubsystem = new VisionSubsystem(
                 landmarks,
-                new VisionIONorthstar("northstar-1")
-        // new VisionIONorthstar("northstar-2")
-        );
+                new VisionIONorthstar("northstar-1"),
+                new VisionIONorthstar("northstar-2"),
+                new VisionIONorthstar("northstar-3"),
+                new VisionIONorthstar("northstar-4")
+                );
 
+        m_visionSubsystem.setVisionConstants(camTransformsSub.get(), varianceScaleSub.get(), varianceStaticSub.get());
         m_visionSubsystem.setPoseSupplier(m_slam::getRobotPose);
         m_visionSubsystem.setVisionConsumer(this::visionConsumer);
     }
@@ -109,5 +121,4 @@ public class Server {
 
         seenLandmarksPub.set(seenLandmarks);
     }
-
 }
