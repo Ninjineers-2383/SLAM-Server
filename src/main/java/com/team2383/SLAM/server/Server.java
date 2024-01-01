@@ -40,6 +40,8 @@ public class Server {
     private StructArrayPublisher<Pose3d> landmarksPub;
     private StructArrayPublisher<Pose3d> seenLandmarksPub;
 
+    private Pose3d previousPose = new Pose3d();
+
     public Server() {
         NetworkTableInstance inst = NetworkTableInstance.getDefault();
         NetworkTable table = inst.getTable("slam_data");
@@ -63,7 +65,7 @@ public class Server {
     public void loop() {
         TimestampedInteger[] newNumLandmarks = numLandmarksSub.readQueue();
 
-         if (newNumLandmarks.length != 0) {
+        if (newNumLandmarks.length != 0) {
             numLandmarks = (int) newNumLandmarks[newNumLandmarks.length - 1].value;
             Pose3d[] landmarks = landmarksSub.get(new Pose3d[0]);
             reinitializeSLAM(numLandmarks, landmarks);
@@ -79,8 +81,18 @@ public class Server {
 
         m_visionSubsystem.periodic();
 
+    
         posePub.set(m_slam.getRobotPose());
         landmarksPub.set(m_slam.getLandmarkPoses());
+
+        // if (!(m_slam.getRobotPose() == null) && !m_slam.getRobotPose().equals(previousPose)) {
+        //         System.out.println("Change" + m_slam.getRobotPose().toString() + " " + previousPose.toString());
+        //         throw new RuntimeException("Change");
+        // }
+
+        // if (!(m_slam.getRobotPose() == null)) {
+        //     previousPose = m_slam.getRobotPose();
+        // }
     }
 
     private void reinitializeSLAM(int numLandmarks, Pose3d[] landmarks) {
