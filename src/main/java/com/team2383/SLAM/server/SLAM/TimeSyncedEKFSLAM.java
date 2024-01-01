@@ -163,6 +163,7 @@ public class TimeSyncedEKFSLAM {
     }
 
     public void addDriveOdometryMeasurement(ChassisSpeeds speeds, double timestamp) {
+        System.out.println("Chassis" + speeds.toString() + timestamp);
         // If the buffer is empty do not add the entry
         if (buffer.isEmpty()) {
             return;
@@ -177,6 +178,8 @@ public class TimeSyncedEKFSLAM {
     }
 
     public void addVisionMeasurement(Transform3d robotToTag, int landmarkIndex, double timestamp) {
+        System.out.println("Vision");
+
         buffer.addVisionEntry(new EKFSLAMBufferEntry(robotToTag, landmarkIndex, timestamp));
 
         updateChunk();
@@ -210,6 +213,8 @@ public class TimeSyncedEKFSLAM {
                         buffer.get(i).state.get().sigma(), i);
             }
         }
+
+        System.out.println("Completed Chunk");
 
     }
 

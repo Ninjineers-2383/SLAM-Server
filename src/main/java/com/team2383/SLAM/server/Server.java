@@ -117,7 +117,7 @@ public class Server {
             i++;
         }
 
-        System.out.println("Vision updates: " + visionUpdates.size());
+        // System.out.println("Vision updates: " + visionUpdates.size());
 
         seenLandmarksPub.set(seenLandmarks);
     }
