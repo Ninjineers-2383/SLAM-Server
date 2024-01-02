@@ -40,8 +40,6 @@ public class Server {
     private StructArrayPublisher<Pose3d> landmarksPub;
     private StructArrayPublisher<Pose3d> seenLandmarksPub;
 
-    private Pose3d previousPose = new Pose3d();
-
     public Server() {
         NetworkTableInstance inst = NetworkTableInstance.getDefault();
         NetworkTable table = inst.getTable("slam_data");
@@ -81,17 +79,20 @@ public class Server {
 
         m_visionSubsystem.periodic();
 
-    
-        posePub.set(m_slam.getRobotPose());
-        landmarksPub.set(m_slam.getLandmarkPoses());
+        if (m_slam.hasNewData()) {
+            posePub.set(m_slam.getRobotPose(), (long) (m_slam.getRobotPoseTimestamp() * 1000000.0));
+            landmarksPub.set(m_slam.getLandmarkPoses(), (long) (m_slam.getRobotPoseTimestamp() * 1000000.0));
+        }
 
-        // if (!(m_slam.getRobotPose() == null) && !m_slam.getRobotPose().equals(previousPose)) {
-        //         System.out.println("Change" + m_slam.getRobotPose().toString() + " " + previousPose.toString());
-        //         throw new RuntimeException("Change");
+        // if (!(m_slam.getRobotPose() == null) &&
+        // !m_slam.getRobotPose().equals(previousPose)) {
+        // System.out.println("Change" + m_slam.getRobotPose().toString() + " " +
+        // previousPose.toString());
+        // throw new RuntimeException("Change");
         // }
 
         // if (!(m_slam.getRobotPose() == null)) {
-        //     previousPose = m_slam.getRobotPose();
+        // previousPose = m_slam.getRobotPose();
         // }
     }
 
@@ -103,8 +104,7 @@ public class Server {
                 new VisionIONorthstar("northstar-1"),
                 new VisionIONorthstar("northstar-2"),
                 new VisionIONorthstar("northstar-3"),
-                new VisionIONorthstar("northstar-4")
-                );
+                new VisionIONorthstar("northstar-4"));
 
         m_visionSubsystem.setVisionConstants(camTransformsSub.get(), varianceScaleSub.get(), varianceStaticSub.get());
         m_visionSubsystem.setPoseSupplier(m_slam::getRobotPose);

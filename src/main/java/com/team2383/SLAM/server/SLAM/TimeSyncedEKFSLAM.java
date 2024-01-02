@@ -52,6 +52,9 @@ public class TimeSyncedEKFSLAM {
 
     private boolean enabled = false;
 
+    private boolean hasNewData = false;
+    private double robotPoseTimestamp = 0;
+
     private final EKFSLAMBuffer buffer;
 
     private final int numLandmarks;
@@ -212,8 +215,11 @@ public class TimeSyncedEKFSLAM {
                         buffer.get(i).state.get().mu(),
                         buffer.get(i).state.get().sigma(), i);
             }
+
         }
 
+        hasNewData = true;
+        robotPoseTimestamp = buffer.get(secondSpeedsIndex).timestamp;
         System.out.println("Completed Chunk");
         System.out.println(getRobotPose().toString() + "\n");
 
@@ -372,13 +378,26 @@ public class TimeSyncedEKFSLAM {
 
     private SimpleMatrix subtractPose(SimpleMatrix A, SimpleMatrix B) {
         if (Math.signum(A.get(6)) != Math.signum(B.get(6))) {
-            A.set(3, 0, -A.get(3));
-            A.set(4, 0, -A.get(4));
-            A.set(5, 0, -A.get(5));
-            A.set(6, 0, -A.get(6));
+            // A.set(3, 0, -A.get(3));
+            // A.set(4, 0, -A.get(4));
+            // A.set(5, 0, -A.get(5));
+            // A.set(6, 0, -A.get(6));
         }
 
         return A.minus(B);
+    }
+
+    public boolean hasNewData() {
+        if (hasNewData) {
+            hasNewData = false;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public double getRobotPoseTimestamp() {
+        return robotPoseTimestamp;
     }
 
     private Pose3d getPose(SimpleMatrix mu, int start) {
