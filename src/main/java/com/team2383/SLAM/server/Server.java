@@ -10,6 +10,7 @@ import com.team2383.SLAM.server.vision.VisionSubsystem.TimestampVisionUpdate;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.networktables.IntegerSubscriber;
 import edu.wpi.first.networktables.NetworkTable;
@@ -37,6 +38,7 @@ public class Server {
     private final DoubleSubscriber varianceStaticSub;
 
     private StructPublisher<Pose3d> posePub;
+    private DoublePublisher timePub;
     private StructArrayPublisher<Pose3d> landmarksPub;
     private StructArrayPublisher<Pose3d> seenLandmarksPub;
 
@@ -53,9 +55,14 @@ public class Server {
         varianceScaleSub = table.getDoubleTopic("varianceScale").subscribe(0);
         varianceStaticSub = table.getDoubleTopic("varianceStatic").subscribe(0);
 
-        posePub = table.getStructTopic("pose", Pose3d.struct).publish();
-        landmarksPub = table.getStructArrayTopic("landmarks", Pose3d.struct).publish();
-        seenLandmarksPub = table.getStructArrayTopic("seenLandmarks", Pose3d.struct).publish();
+        posePub = table.getStructTopic("pose", Pose3d.struct).publish(PubSubOption.periodic(0),
+                PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
+        timePub = table.getDoubleTopic("pose-time").publish(PubSubOption.periodic(0),
+                PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
+        landmarksPub = table.getStructArrayTopic("landmarks", Pose3d.struct).publish(PubSubOption.periodic(0),
+                PubSubOption.sendAll(true));
+        seenLandmarksPub = table.getStructArrayTopic("seenLandmarks", Pose3d.struct).publish(PubSubOption.periodic(0),
+                PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
 
         reinitializeSLAM(numLandmarks, new Pose3d[0]);
     }
@@ -74,14 +81,15 @@ public class Server {
         TimestampedObject<ChassisSpeeds>[] chassisSpeeds = chassisSpeedsSub.readQueue();
 
         for (TimestampedObject<ChassisSpeeds> chassisSpeed : chassisSpeeds) {
-            m_slam.addDriveOdometryMeasurement(chassisSpeed.value, chassisSpeed.timestamp / 1000000.0);
+            m_slam.addDriveOdometryMeasurement(chassisSpeed.value, chassisSpeed.serverTime / 1000000.0);
         }
 
         m_visionSubsystem.periodic();
 
         if (m_slam.hasNewData()) {
-            posePub.set(m_slam.getRobotPose(), (long) (m_slam.getRobotPoseTimestamp() * 1000000.0));
-            landmarksPub.set(m_slam.getLandmarkPoses(), (long) (m_slam.getRobotPoseTimestamp() * 1000000.0));
+            posePub.set(m_slam.getRobotPose());
+            timePub.set(m_slam.getRobotPoseTimestamp());
+            landmarksPub.set(m_slam.getLandmarkPoses());
         }
 
         // if (!(m_slam.getRobotPose() == null) &&

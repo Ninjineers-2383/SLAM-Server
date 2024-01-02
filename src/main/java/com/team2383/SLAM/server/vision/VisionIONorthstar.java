@@ -51,7 +51,7 @@ public class VisionIONorthstar implements VisionIO {
         inputs.timestamps = new double[queue.length];
         inputs.frames = new double[queue.length][];
         for (int i = 0; i < queue.length; i++) {
-            inputs.timestamps[i] = queue[i].timestamp / 1000000.0;
+            inputs.timestamps[i] = queue[i].serverTime / 1000000.0;
             inputs.frames[i] = queue[i].value;
         }
         inputs.fps = fpsSubscriber.get();
