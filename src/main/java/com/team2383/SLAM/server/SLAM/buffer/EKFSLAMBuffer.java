@@ -165,10 +165,13 @@ public class EKFSLAMBuffer {
         double timeFinal = get(secondSpeedsIndex).timestamp;
         double timeInitial = get(0).timestamp;
         double timeIndex = get(index).timestamp;
+        double timeIndexM1 = get(index - 1).timestamp;
 
-        ChassisSpeeds interpolatedSpeeds = speedsFinal.minus(speedsInitial).div((timeFinal - timeInitial) * 0.5)
-                .times(((timeFinal - timeIndex) * 0.5) + timeIndex - timeInitial)
-                .plus(buffer.get(0).speeds.get().speeds());
+        ChassisSpeeds slope = speedsFinal.minus(speedsInitial).div(timeFinal - timeInitial);
+
+        double timeFromInitialToMidpoint = ((timeIndex - timeIndexM1) / 2.0) + timeIndexM1 - timeInitial;
+
+        ChassisSpeeds interpolatedSpeeds = speedsInitial.plus(slope.times(timeFromInitialToMidpoint));
 
         return interpolatedSpeeds;
     }
