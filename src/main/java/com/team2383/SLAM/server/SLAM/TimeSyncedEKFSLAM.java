@@ -303,7 +303,7 @@ public class TimeSyncedEKFSLAM {
 
         SimpleMatrix Hi = H.mult(F_xj);
 
-        SimpleMatrix Q = SimpleMatrix.diag(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1);
+        SimpleMatrix Q = SimpleMatrix.diag(0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01);
 
         SimpleMatrix S = Hi.mult(sigmaHat.mult(Hi.transpose())).plus(Q).invert();
 
