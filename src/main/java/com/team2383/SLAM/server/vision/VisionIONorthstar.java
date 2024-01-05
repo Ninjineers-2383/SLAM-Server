@@ -10,11 +10,11 @@ import edu.wpi.first.networktables.StringPublisher;
 
 public class VisionIONorthstar implements VisionIO {
     private static final int cameraId = 0;
-    private static final int cameraResolutionWidth = 1600;
-    private static final int cameraResolutionHeight = 1200;
-    private static final int cameraAutoExposure = 1;
-    private static final int cameraExposure = 10;
-    private static final int cameraGain = 25;
+    private static final int cameraResolutionWidth = 1280;
+    private static final int cameraResolutionHeight = 720;
+    private static final int cameraAutoExposure = 3;
+    private static final int cameraExposure = 0;
+    private static final int cameraGain = 0;
 
     private final DoubleArraySubscriber observationSubscriber;
     private final IntegerSubscriber fpsSubscriber;
