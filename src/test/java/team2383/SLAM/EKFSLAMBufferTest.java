@@ -4,12 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
+import com.team2383.SLAM.server.TimedChassisSpeeds;
 import com.team2383.SLAM.server.SLAM.buffer.EKFSLAMBuffer;
 import com.team2383.SLAM.server.SLAM.buffer.EKFSLAMBufferEntry;
 import com.team2383.SLAM.server.SLAM.buffer.EKFSLAMState;
 
 import edu.wpi.first.math.geometry.Transform3d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
 
 public class EKFSLAMBufferTest {
 
@@ -91,9 +91,9 @@ public class EKFSLAMBufferTest {
 
         assertEquals(2, buffer.size());
         assertEquals(2, buffer.get(0).timestamp);
-        assert(buffer.get(0).isSpeedsEntry());
+        assert (buffer.get(0).isSpeedsEntry());
         assertEquals(2, buffer.get(1).timestamp);
-        assert(buffer.get(1).isVisionEntry());
+        assert (buffer.get(1).isVisionEntry());
     }
 
     @Test
@@ -137,7 +137,7 @@ public class EKFSLAMBufferTest {
         assertEquals(2, buffer.get(1).timestamp);
     }
 
-    @Test 
+    @Test
     public void testSecondSpeedsIndex() {
         EKFSLAMBuffer buffer = new EKFSLAMBuffer(this::createInitialState);
 
@@ -148,7 +148,7 @@ public class EKFSLAMBufferTest {
         assertEquals(2, buffer.getSecondSpeedsIndex());
 
         buffer.addVisionEntry(createVisionEntry(2));
-        
+
         assertEquals(3, buffer.getSecondSpeedsIndex());
 
         buffer.addVisionEntry(createVisionEntry(5));
@@ -172,7 +172,7 @@ public class EKFSLAMBufferTest {
     }
 
     public EKFSLAMBufferEntry createSpeedsEntry(double timestamp) {
-        return new EKFSLAMBufferEntry(new ChassisSpeeds(), timestamp);
+        return new EKFSLAMBufferEntry(new TimedChassisSpeeds(), timestamp);
     }
 
     private EKFSLAMState createInitialState(EKFSLAMBufferEntry entry) {

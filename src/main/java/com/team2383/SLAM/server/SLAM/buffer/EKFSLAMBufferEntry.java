@@ -4,8 +4,9 @@ import java.util.Optional;
 
 import org.ejml.simple.SimpleMatrix;
 
+import com.team2383.SLAM.server.TimedChassisSpeeds;
+
 import edu.wpi.first.math.geometry.Transform3d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
 
 public class EKFSLAMBufferEntry {
     public final Optional<EKFSLAMChassisResult> speeds;
@@ -13,7 +14,7 @@ public class EKFSLAMBufferEntry {
     public final double timestamp;
     public Optional<EKFSLAMState> state;
 
-    public EKFSLAMBufferEntry(ChassisSpeeds speeds, double timestamp) {
+    public EKFSLAMBufferEntry(TimedChassisSpeeds speeds, double timestamp) {
         this.state = Optional.empty();
         this.speeds = Optional.of(new EKFSLAMChassisResult(speeds));
         this.visionResult = Optional.empty();

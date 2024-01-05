@@ -5,13 +5,13 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.team2383.SLAM.server.TimedChassisSpeeds;
 import com.team2383.SLAM.server.SLAM.TimeSyncedEKFSLAM;
 
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Quaternion;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
 
 public class TimeSyncedEKFSLAMTest {
     private final Pose3d[] landmarkSeed = new Pose3d[] {
@@ -35,7 +35,7 @@ public class TimeSyncedEKFSLAMTest {
         TimeSyncedEKFSLAM SLAM = new TimeSyncedEKFSLAM(landmarkSeed.length, landmarkSeed);
 
         SLAM.addVisionMeasurement(new Transform3d(), 0, 0);
-        SLAM.addDriveOdometryMeasurement(new ChassisSpeeds(), 1);
+        SLAM.addDriveOdometryMeasurement(new TimedChassisSpeeds(), 1);
 
         assertEquals(new Pose3d(), SLAM.getRobotPose());
     }
@@ -45,7 +45,7 @@ public class TimeSyncedEKFSLAMTest {
         TimeSyncedEKFSLAM SLAM = new TimeSyncedEKFSLAM(landmarkSeed.length, landmarkSeed);
 
         SLAM.addVisionMeasurement(new Transform3d(1, 0, 0, new Rotation3d()), 1, 0);
-        SLAM.addDriveOdometryMeasurement(new ChassisSpeeds(), 1);
+        SLAM.addDriveOdometryMeasurement(new TimedChassisSpeeds(), 1);
 
         assertEquals(new Pose3d(), SLAM.getRobotPose());
     }
@@ -55,10 +55,10 @@ public class TimeSyncedEKFSLAMTest {
         TimeSyncedEKFSLAM SLAM = new TimeSyncedEKFSLAM(landmarkSeed.length, landmarkSeed);
 
         SLAM.addVisionMeasurement(new Transform3d(), 0, 0);
-        SLAM.addDriveOdometryMeasurement(new ChassisSpeeds(), 1);
-        SLAM.addDriveOdometryMeasurement(new ChassisSpeeds(), 2);
-        SLAM.addDriveOdometryMeasurement(new ChassisSpeeds(), 3);
-        SLAM.addDriveOdometryMeasurement(new ChassisSpeeds(), 4);
+        SLAM.addDriveOdometryMeasurement(new TimedChassisSpeeds(), 1);
+        SLAM.addDriveOdometryMeasurement(new TimedChassisSpeeds(), 2);
+        SLAM.addDriveOdometryMeasurement(new TimedChassisSpeeds(), 3);
+        SLAM.addDriveOdometryMeasurement(new TimedChassisSpeeds(), 4);
 
         assertEquals(new Pose3d(), SLAM.getRobotPose());
     }
@@ -68,13 +68,13 @@ public class TimeSyncedEKFSLAMTest {
         TimeSyncedEKFSLAM SLAM = new TimeSyncedEKFSLAM(landmarkSeed.length, landmarkSeed);
 
         SLAM.addVisionMeasurement(new Transform3d(), 0, 0);
-        SLAM.addDriveOdometryMeasurement(new ChassisSpeeds(), 1);
+        SLAM.addDriveOdometryMeasurement(new TimedChassisSpeeds(), 1);
         SLAM.addVisionMeasurement(new Transform3d(), 0, 3);
         SLAM.addVisionMeasurement(new Transform3d(), 0, 2);
-        SLAM.addDriveOdometryMeasurement(new ChassisSpeeds(), 4);
+        SLAM.addDriveOdometryMeasurement(new TimedChassisSpeeds(), 4);
         SLAM.addVisionMeasurement(new Transform3d(1, 0, 0, new Rotation3d()), 1, 5);
         SLAM.addVisionMeasurement(new Transform3d(1, 0, 0, new Rotation3d()), 1, 6);
-        SLAM.addDriveOdometryMeasurement(new ChassisSpeeds(), 7);
+        SLAM.addDriveOdometryMeasurement(new TimedChassisSpeeds(), 7);
 
         assertEquals(new Pose3d(), SLAM.getRobotPose());
     }
@@ -86,18 +86,18 @@ public class TimeSyncedEKFSLAMTest {
 
         SLAM.addVisionMeasurement(new Transform3d(0, 0, 0,
                 new Rotation3d(new Quaternion(0.9842372831972948, 0, 0, -0.17685296255479674))), 0, 0);
-        SLAM.addDriveOdometryMeasurement(new ChassisSpeeds(), 0.1);
+        SLAM.addDriveOdometryMeasurement(new TimedChassisSpeeds(), 0.1);
 
         for (int i = 1; i <= 100; i++) {
             SLAM.addVisionMeasurement(new Transform3d(), 0, i);
-            SLAM.addDriveOdometryMeasurement(new ChassisSpeeds(), i + 0.1);
+            SLAM.addDriveOdometryMeasurement(new TimedChassisSpeeds(), i + 0.1);
             assertTrue(deltaEquals(new Pose3d(), SLAM.getRobotPose(), delta),
                     String.format("Expected %s to be within %s of %s at iteration %d", SLAM.getRobotPose(),
                             delta,
                             new Pose3d(), i));
         }
 
-        SLAM.addDriveOdometryMeasurement(new ChassisSpeeds(), 101);
+        SLAM.addDriveOdometryMeasurement(new TimedChassisSpeeds(), 101);
 
         assertTrue(deltaEquals(new Pose3d(), SLAM.getRobotPose(), delta));
     }

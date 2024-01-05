@@ -4,6 +4,7 @@ import java.util.function.BiFunction;
 
 import org.ejml.simple.SimpleMatrix;
 
+import com.team2383.SLAM.server.TimedChassisSpeeds;
 import com.team2383.SLAM.server.SLAM.buffer.EKFSLAMBuffer;
 import com.team2383.SLAM.server.SLAM.buffer.EKFSLAMBufferEntry;
 import com.team2383.SLAM.server.SLAM.buffer.EKFSLAMState;
@@ -165,7 +166,7 @@ public class TimeSyncedEKFSLAM {
         return sigma;
     }
 
-    public void addDriveOdometryMeasurement(ChassisSpeeds speeds, double timestamp) {
+    public void addDriveOdometryMeasurement(TimedChassisSpeeds speeds, double timestamp) {
         System.out.println("Chassis" + speeds.toString() + timestamp + "\n");
         // If the buffer is empty do not add the entry
         if (buffer.isEmpty()) {
@@ -219,7 +220,7 @@ public class TimeSyncedEKFSLAM {
         }
 
         hasNewData = true;
-        robotPoseTimestamp = buffer.get(secondSpeedsIndex).timestamp;
+        robotPoseTimestamp = buffer.get(secondSpeedsIndex).speeds.get().speeds().timestamp;
         System.out.println("Completed Chunk");
         System.out.println(getRobotPose().toString() + "\n");
 

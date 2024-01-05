@@ -9,7 +9,6 @@ import com.team2383.SLAM.server.vision.VisionSubsystem.TimestampVisionUpdate;
 
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Transform3d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.networktables.IntegerSubscriber;
@@ -31,7 +30,7 @@ public class Server {
 
     private IntegerSubscriber numLandmarksSub;
     private StructArraySubscriber<Pose3d> landmarksSub;
-    private StructSubscriber<ChassisSpeeds> chassisSpeedsSub;
+    private StructSubscriber<TimedChassisSpeeds> chassisSpeedsSub;
 
     private final StructArraySubscriber<Transform3d> camTransformsSub;
     private final DoubleSubscriber varianceScaleSub;
@@ -48,8 +47,8 @@ public class Server {
 
         landmarksSub = table.getStructArrayTopic("seed-landmarks", Pose3d.struct).subscribe(new Pose3d[0]);
         numLandmarksSub = table.getIntegerTopic("numLandmarks").subscribe(0);
-        chassisSpeedsSub = table.getStructTopic("chassisSpeeds", ChassisSpeeds.struct)
-                .subscribe(new ChassisSpeeds(), PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
+        chassisSpeedsSub = table.getStructTopic("chassisSpeeds", TimedChassisSpeeds.struct)
+                .subscribe(new TimedChassisSpeeds(), PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
 
         camTransformsSub = table.getStructArrayTopic("camTransforms", Transform3d.struct).subscribe(new Transform3d[0]);
         varianceScaleSub = table.getDoubleTopic("varianceScale").subscribe(0);
@@ -78,9 +77,9 @@ public class Server {
             System.out.println("Reinitialized SLAM with " + numLandmarks + " landmarks");
         }
 
-        TimestampedObject<ChassisSpeeds>[] chassisSpeeds = chassisSpeedsSub.readQueue();
+        TimestampedObject<TimedChassisSpeeds>[] chassisSpeeds = chassisSpeedsSub.readQueue();
 
-        for (TimestampedObject<ChassisSpeeds> chassisSpeed : chassisSpeeds) {
+        for (TimestampedObject<TimedChassisSpeeds> chassisSpeed : chassisSpeeds) {
             m_slam.addDriveOdometryMeasurement(chassisSpeed.value, chassisSpeed.serverTime / 1000000.0);
         }
 

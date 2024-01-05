@@ -1,6 +1,6 @@
 package com.team2383.SLAM.server.SLAM.buffer;
 
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import com.team2383.SLAM.server.TimedChassisSpeeds;
 
-public record EKFSLAMChassisResult(ChassisSpeeds speeds) {
+public record EKFSLAMChassisResult(TimedChassisSpeeds speeds) {
 }

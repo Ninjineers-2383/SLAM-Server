@@ -3,6 +3,8 @@ package com.team2383.SLAM.server.SLAM.buffer;
 import java.util.ArrayList;
 import java.util.function.Function;
 
+import com.team2383.SLAM.server.TimedChassisSpeeds;
+
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 
 public class EKFSLAMBuffer {
@@ -19,7 +21,7 @@ public class EKFSLAMBuffer {
         // If the buffer is entirely empty and we get a vision measurement we need to
         // initialize the SLAM system with the first measurements
         if (isEmpty()) {
-            EKFSLAMBufferEntry initialSpeedsEntry = new EKFSLAMBufferEntry(new ChassisSpeeds(), entry.timestamp);
+            EKFSLAMBufferEntry initialSpeedsEntry = new EKFSLAMBufferEntry(new TimedChassisSpeeds(), entry.timestamp);
             initialSpeedsEntry.updateMuAndSigma(getInitialSLAMState.apply(entry));
             buffer.add(initialSpeedsEntry);
             buffer.add(entry);
@@ -159,8 +161,8 @@ public class EKFSLAMBuffer {
 
         int secondSpeedsIndex = getSecondSpeedsIndex();
 
-        ChassisSpeeds speedsInitial = buffer.get(0).speeds.get().speeds();
-        ChassisSpeeds speedsFinal = buffer.get(secondSpeedsIndex).speeds.get().speeds();
+        ChassisSpeeds speedsInitial = buffer.get(0).speeds.get().speeds().chassisSpeeds;
+        ChassisSpeeds speedsFinal = buffer.get(secondSpeedsIndex).speeds.get().speeds().chassisSpeeds;
 
         double timeFinal = get(secondSpeedsIndex).timestamp;
         double timeInitial = get(0).timestamp;
