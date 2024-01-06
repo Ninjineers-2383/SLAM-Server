@@ -138,6 +138,6 @@ public class Server {
 
         // System.out.println("Vision updates: " + visionUpdates.size());
 
-        seenLandmarksPub.set(seenLandmarks);
+        // seenLandmarksPub.set(seenLandmarks);
     }
 }
