@@ -15,9 +15,20 @@ public class TimedChassisSpeeds {
         this(new ChassisSpeeds(), 0);
     }
 
+    public TimedChassisSpeeds(double timestamp) {
+        this(new ChassisSpeeds(), timestamp);
+    }
+
     public TimedChassisSpeeds(ChassisSpeeds chassisSpeeds, double timestamp) {
         this.chassisSpeeds = chassisSpeeds;
         this.timestamp = timestamp;
+    }
+
+    @Override
+    public String toString() {
+        return String.format(
+                "TimedChassisSpeeds(speeds: %s, timestamp: %.2f)",
+                chassisSpeeds.toString(), timestamp);
     }
 
     public static class TimedChassisSpeedsStruct implements Struct<TimedChassisSpeeds> {

@@ -43,7 +43,7 @@ public class VisionSubsystem {
         }
 
         List<TimestampVisionUpdate> updates = new ArrayList<>();
-        for (int i = 0; i < inputs.length; i++) {
+        for (int i = 0; i < Math.min(inputs.length, camTransforms.length); i++) {
             for (int j = 0; j < inputs[i].frames.length; j++) {
                 double timestamp = inputs[i].timestamps[j];
 
@@ -85,6 +85,7 @@ public class VisionSubsystem {
         }
 
         visionConsumer.accept(updates);
+
     }
 
     public void setVisionConstants(Transform3d[] camTransforms, double varianceScale, double varianceStatic) {

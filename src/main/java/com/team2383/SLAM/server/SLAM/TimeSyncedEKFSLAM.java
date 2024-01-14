@@ -167,7 +167,7 @@ public class TimeSyncedEKFSLAM {
     }
 
     public void addDriveOdometryMeasurement(TimedChassisSpeeds speeds, double timestamp) {
-        System.out.println("Chassis" + speeds.toString() + timestamp + "\n");
+        System.out.println("Chassis " + speeds.toString() + timestamp + "\n");
         // If the buffer is empty do not add the entry
         if (buffer.isEmpty()) {
             return;
@@ -378,13 +378,28 @@ public class TimeSyncedEKFSLAM {
     }
 
     private SimpleMatrix subtractPose(SimpleMatrix A, SimpleMatrix B) {
-        if (Math.signum(A.get(6)) != Math.signum(B.get(6))) {
-            // A.set(3, 0, -A.get(3));
-            // A.set(4, 0, -A.get(4));
-            // A.set(5, 0, -A.get(5));
-            // A.set(6, 0, -A.get(6));
+        if (Math.signum(A.get(3)) != Math.signum(B.get(3))) {
+            A.set(3, 0, -A.get(3));
+            A.set(4, 0, -A.get(4));
+            A.set(5, 0, -A.get(5));
+            A.set(6, 0, -A.get(6));
+            System.out.println("Flipped");
         }
 
+        // Quaternion qA = new Quaternion(A.get(3), A.get(4), A.get(5), A.get(6));
+        // Quaternion qB = new Quaternion(B.get(3), B.get(4), B.get(5), B.get(6));
+
+        // Quaternion qRes = qA.inverse().times(qB);
+
+        // return new SimpleMatrix(new double[] {
+        // A.get(0) - B.get(0),
+        // A.get(1) - B.get(1),
+        // A.get(2) - B.get(2),
+        // qRes.getW(),
+        // qRes.getX(),
+        // qRes.getY(),
+        // qRes.getZ(),
+        // });
         return A.minus(B);
     }
 
