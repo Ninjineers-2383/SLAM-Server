@@ -182,9 +182,13 @@ public class TimeSyncedEKFSLAM {
     }
 
     public void addVisionMeasurement(Transform3d robotToTag, int landmarkIndex, double timestamp) {
+        addVisionMeasurement(robotToTag, SimpleMatrix.identity(7).scale(0.05), landmarkIndex, timestamp);
+    }
+
+    public void addVisionMeasurement(Transform3d robotToTag, SimpleMatrix cov, int landmarkIndex, double timestamp) {
         System.out.println(robotToTag.toString() + " " + landmarkIndex + " " + timestamp + "\n");
 
-        buffer.addVisionEntry(new EKFSLAMBufferEntry(robotToTag, landmarkIndex, timestamp));
+        buffer.addVisionEntry(new EKFSLAMBufferEntry(robotToTag, cov, landmarkIndex, timestamp));
 
         updateChunk();
     }
@@ -212,7 +216,9 @@ public class TimeSyncedEKFSLAM {
                     buffer.get(i - 1).state.get().sigma(),
                     i);
             if (buffer.get(i).isVisionEntry()) {
-                correct(buffer.get(i).visionResult.get().robotToTag(), buffer.get(i).visionResult.get().landmarkIndex(),
+                correct(buffer.get(i).visionResult.get().robotToTag(),
+                        buffer.get(i).visionResult.get().cov(),
+                        buffer.get(i).visionResult.get().landmarkIndex(),
                         buffer.get(i).state.get().mu(),
                         buffer.get(i).state.get().sigma(), i);
             }
@@ -265,7 +271,8 @@ public class TimeSyncedEKFSLAM {
      *                      the index of the landmark in the state vector
      * @return the corrected pose of the robot
      */
-    public Pose3d correct(Transform3d robotToTag, int landmarkIndex, SimpleMatrix muHat, SimpleMatrix sigmaHat,
+    public Pose3d correct(Transform3d robotToTag, SimpleMatrix cov, int landmarkIndex, SimpleMatrix muHat,
+            SimpleMatrix sigmaHat,
             int index) {
         if (!enabled) {
             return getRobotPose();
@@ -304,7 +311,7 @@ public class TimeSyncedEKFSLAM {
 
         SimpleMatrix Hi = H.mult(F_xj);
 
-        SimpleMatrix Q = SimpleMatrix.diag(0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01);
+        SimpleMatrix Q = cov;
 
         SimpleMatrix S = Hi.mult(sigmaHat.mult(Hi.transpose())).plus(Q).invert();
 

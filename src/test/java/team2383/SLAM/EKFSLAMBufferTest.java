@@ -2,6 +2,7 @@ package team2383.SLAM;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import org.ejml.simple.SimpleMatrix;
 import org.junit.jupiter.api.Test;
 
 import com.team2383.SLAM.server.TimedChassisSpeeds;
@@ -168,7 +169,7 @@ public class EKFSLAMBufferTest {
     }
 
     public EKFSLAMBufferEntry createVisionEntry(double timestamp) {
-        return new EKFSLAMBufferEntry(new Transform3d(), 0, timestamp);
+        return new EKFSLAMBufferEntry(new Transform3d(), SimpleMatrix.identity(7).scale(0.01), 0, timestamp);
     }
 
     public EKFSLAMBufferEntry createSpeedsEntry(double timestamp) {

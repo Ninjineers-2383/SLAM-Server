@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import org.ejml.simple.SimpleMatrix;
+
 public class VisionSubsystem {
     private final VisionIO[] visionIO;
     private final VisionIOInputs[] inputs;
@@ -23,8 +25,8 @@ public class VisionSubsystem {
     private Pose3d[] tagPoses;
 
     private Transform3d[] camTransforms;
-    // private double varianceScale;
-    // private double varianceStatic;
+    private double varianceScale;
+    private double varianceStatic;
 
     public VisionSubsystem(Pose3d[] tagPoses, VisionIO... visionIO) {
         this.tagPoses = tagPoses;
@@ -58,8 +60,8 @@ public class VisionSubsystem {
                         Transform3d offset1 = new Transform3d(pose, tagPoses[tag1]);
                         Transform3d offset2 = new Transform3d(pose, tagPoses[tag2]);
 
-                        updates.add(new TimestampVisionUpdate(timestamp, offset1, tag1));
-                        updates.add(new TimestampVisionUpdate(timestamp, offset2, tag2));
+                        updates.add(new TimestampVisionUpdate(timestamp, offset1, getCov(offset1), tag1));
+                        updates.add(new TimestampVisionUpdate(timestamp, offset2, getCov(offset2), tag2));
 
                     case 2: // 2 transform estimates
                         double error1 = values[1];
@@ -73,11 +75,15 @@ public class VisionSubsystem {
                         int tag = (int) values[17];
 
                         if (error1 < error2) {
+                            Transform3d robotToTag = camTransforms[i].plus(transform1);
                             updates.add(new TimestampVisionUpdate(timestamp,
-                                    camTransforms[i].plus(transform1), tag));
+                                    robotToTag,
+                                    getCov(robotToTag),
+                                    tag));
                         } else {
+                            Transform3d robotToTag = camTransforms[i].plus(transform2);
                             updates.add(new TimestampVisionUpdate(timestamp,
-                                    camTransforms[i].plus(transform2), tag));
+                                    robotToTag, getCov(robotToTag), tag));
                         }
                         break;
                 }
@@ -88,10 +94,16 @@ public class VisionSubsystem {
 
     }
 
+    private SimpleMatrix getCov(Transform3d transform) {
+        double val = varianceStatic + varianceScale * transform.getTranslation().getNorm();
+        SimpleMatrix cov = SimpleMatrix.identity(7).scale(val);
+        return cov;
+    }
+
     public void setVisionConstants(Transform3d[] camTransforms, double varianceScale, double varianceStatic) {
         this.camTransforms = camTransforms;
-        // this.varianceScale = varianceScale;
-        // this.varianceStatic = varianceStatic;
+        this.varianceScale = varianceScale;
+        this.varianceStatic = varianceStatic;
     }
 
     public void setVisionConsumer(Consumer<List<TimestampVisionUpdate>> consumer) {
@@ -103,7 +115,7 @@ public class VisionSubsystem {
     }
 
     /** Represents a single vision pose */
-    public static record TimestampVisionUpdate(double timestamp, Transform3d pose, int tagId) {
+    public static record TimestampVisionUpdate(double timestamp, Transform3d pose, SimpleMatrix covariance, int tagId) {
     }
 
 }

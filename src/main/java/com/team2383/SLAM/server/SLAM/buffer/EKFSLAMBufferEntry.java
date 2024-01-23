@@ -21,10 +21,10 @@ public class EKFSLAMBufferEntry {
         this.timestamp = timestamp;
     }
 
-    public EKFSLAMBufferEntry(Transform3d robotToTag, Integer landmarkIndex, double timestamp) {
+    public EKFSLAMBufferEntry(Transform3d robotToTag, SimpleMatrix cov, Integer landmarkIndex, double timestamp) {
         this.state = Optional.empty();
         this.speeds = Optional.empty();
-        this.visionResult = Optional.of(new EKFSLAMVisionResult(robotToTag, landmarkIndex));
+        this.visionResult = Optional.of(new EKFSLAMVisionResult(robotToTag, cov, landmarkIndex));
         this.timestamp = timestamp;
     }
 

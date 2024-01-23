@@ -46,7 +46,7 @@ public class Server {
         NetworkTable table = inst.getTable("slam_data");
 
         landmarksSub = table.getStructArrayTopic("seed-landmarks", Pose3d.struct).subscribe(new Pose3d[0]);
-        numLandmarksSub = table.getIntegerTopic("numLandmarks").subscribe(0);
+        numLandmarksSub = table.getIntegerTopic("numLandmarks").subscribe(0, PubSubOption.keepDuplicates(true));
         chassisSpeedsSub = table.getStructTopic("chassisSpeeds", TimedChassisSpeeds.struct)
                 .subscribe(new TimedChassisSpeeds(), PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
 
@@ -124,7 +124,7 @@ public class Server {
 
         int i = 0;
         for (TimestampVisionUpdate update : visionUpdates) {
-            m_slam.addVisionMeasurement(update.pose(), update.tagId() - 1, update.timestamp());
+            m_slam.addVisionMeasurement(update.pose(), update.covariance(), update.tagId() - 1, update.timestamp());
 
             Pose3d pose = m_slam.getRobotPose();
             if (pose == null) {
