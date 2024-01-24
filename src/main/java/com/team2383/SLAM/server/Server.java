@@ -1,110 +1,83 @@
 package com.team2383.SLAM.server;
 
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Calendar;
 import java.util.List;
 
-import com.team2383.SLAM.server.SLAM.TimeSyncedEKFSLAM;
+import org.ejml.simple.SimpleMatrix;
+
+import com.team2383.SLAM.server.SLAM.TimeSyncedSLAMLogger;
+import com.team2383.SLAM.server.SLAM.Log.LogOutput;
+import com.team2383.SLAM.server.SLAM.buffer.BufferEntry;
 import com.team2383.SLAM.server.vision.VisionIONorthstar;
 import com.team2383.SLAM.server.vision.VisionSubsystem;
 import com.team2383.SLAM.server.vision.VisionSubsystem.TimestampVisionUpdate;
 
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Transform3d;
-import edu.wpi.first.networktables.DoublePublisher;
+import edu.wpi.first.math.geometry.Twist3d;
+import edu.wpi.first.networktables.BooleanSubscriber;
 import edu.wpi.first.networktables.DoubleSubscriber;
-import edu.wpi.first.networktables.IntegerSubscriber;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.PubSubOption;
-import edu.wpi.first.networktables.StructArrayPublisher;
 import edu.wpi.first.networktables.StructArraySubscriber;
-import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.networktables.StructSubscriber;
-import edu.wpi.first.networktables.TimestampedInteger;
 import edu.wpi.first.networktables.TimestampedObject;
 
 public class Server {
-    private TimeSyncedEKFSLAM m_slam;
     private VisionSubsystem m_visionSubsystem;
+    private TimeSyncedSLAMLogger m_slam;
+
+    private SimpleMatrix covariance;
 
     private int numLandmarks = 0;
 
-    private IntegerSubscriber numLandmarksSub;
-    private StructArraySubscriber<Pose3d> landmarksSub;
-    private StructSubscriber<TimedChassisSpeeds> chassisSpeedsSub;
+    private StructSubscriber<Twist3d> twist3dSub;
 
     private final StructArraySubscriber<Transform3d> camTransformsSub;
+    private final BooleanSubscriber saveAndExitSub;
     private final DoubleSubscriber varianceScaleSub;
     private final DoubleSubscriber varianceStaticSub;
-
-    private StructPublisher<Pose3d> posePub;
-    private DoublePublisher timePub;
-    private StructArrayPublisher<Pose3d> landmarksPub;
-    private StructArrayPublisher<Pose3d> seenLandmarksPub;
 
     public Server() {
         NetworkTableInstance inst = NetworkTableInstance.getDefault();
         NetworkTable table = inst.getTable("slam_data");
 
-        landmarksSub = table.getStructArrayTopic("seed-landmarks", Pose3d.struct).subscribe(new Pose3d[0]);
-        numLandmarksSub = table.getIntegerTopic("numLandmarks").subscribe(0, PubSubOption.keepDuplicates(true));
-        chassisSpeedsSub = table.getStructTopic("chassisSpeeds", TimedChassisSpeeds.struct)
-                .subscribe(new TimedChassisSpeeds(), PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
+        twist3dSub = table.getStructTopic("twist3d", Twist3d.struct)
+                .subscribe(new Twist3d(), PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
 
+        saveAndExitSub = table.getBooleanTopic("saveAndExit").subscribe(false);
         camTransformsSub = table.getStructArrayTopic("camTransforms", Transform3d.struct).subscribe(new Transform3d[0]);
         varianceScaleSub = table.getDoubleTopic("varianceScale").subscribe(0);
         varianceStaticSub = table.getDoubleTopic("varianceStatic").subscribe(0);
 
-        posePub = table.getStructTopic("pose", Pose3d.struct).publish(PubSubOption.periodic(0),
-                PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
-        timePub = table.getDoubleTopic("pose-time").publish(PubSubOption.periodic(0),
-                PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
-        landmarksPub = table.getStructArrayTopic("landmarks", Pose3d.struct).publish(PubSubOption.periodic(0),
-                PubSubOption.sendAll(true));
-        seenLandmarksPub = table.getStructArrayTopic("seenLandmarks", Pose3d.struct).publish(PubSubOption.periodic(0),
-                PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
-
         reinitializeSLAM(numLandmarks, new Pose3d[0]);
+
+        covariance = SimpleMatrix.identity(7).scale(0.01);
     }
 
     public void loop() {
-        TimestampedInteger[] newNumLandmarks = numLandmarksSub.readQueue();
+        TimestampedObject<Twist3d>[] twists = twist3dSub.readQueue();
+        m_visionSubsystem.setVisionConstants(camTransformsSub.get(), varianceScaleSub.get(), varianceStaticSub.get());
 
-        if (newNumLandmarks.length != 0) {
-            numLandmarks = (int) newNumLandmarks[newNumLandmarks.length - 1].value;
-            Pose3d[] landmarks = landmarksSub.get(new Pose3d[0]);
-            reinitializeSLAM(numLandmarks, landmarks);
-
-            System.out.println("Reinitialized SLAM with " + numLandmarks + " landmarks");
-        }
-
-        TimestampedObject<TimedChassisSpeeds>[] chassisSpeeds = chassisSpeedsSub.readQueue();
-
-        for (TimestampedObject<TimedChassisSpeeds> chassisSpeed : chassisSpeeds) {
-            m_slam.addDriveOdometryMeasurement(chassisSpeed.value, chassisSpeed.serverTime / 1000000.0);
+        for (TimestampedObject<Twist3d> twist : twists) {
+            m_slam.addEntry(new BufferEntry(twist.value, covariance.copy(), twist.timestamp));
         }
 
         m_visionSubsystem.periodic();
 
-        if (m_slam.hasNewData()) {
-            posePub.set(m_slam.getRobotPose());
-            timePub.set(m_slam.getRobotPoseTimestamp());
-            landmarksPub.set(m_slam.getLandmarkPoses());
+        if (saveAndExitSub.get()) {
+            System.out.println("Saving and exiting");
+            LogOutput log = m_slam.export();
+            log.saveg2o("output.g2o");
+            System.exit(0);
         }
-
-        // if (!(m_slam.getRobotPose() == null) &&
-        // !m_slam.getRobotPose().equals(previousPose)) {
-        // System.out.println("Change" + m_slam.getRobotPose().toString() + " " +
-        // previousPose.toString());
-        // throw new RuntimeException("Change");
-        // }
-
-        // if (!(m_slam.getRobotPose() == null)) {
-        // previousPose = m_slam.getRobotPose();
-        // }
     }
 
     private void reinitializeSLAM(int numLandmarks, Pose3d[] landmarks) {
-        m_slam = new TimeSyncedEKFSLAM(numLandmarks, landmarks);
 
         m_visionSubsystem = new VisionSubsystem(
                 landmarks,
@@ -113,31 +86,14 @@ public class Server {
                 new VisionIONorthstar("northstar-3"),
                 new VisionIONorthstar("northstar-4"));
 
-        m_visionSubsystem.setVisionConstants(camTransformsSub.get(), varianceScaleSub.get(), varianceStaticSub.get());
-        m_visionSubsystem.setPoseSupplier(m_slam::getRobotPose);
         m_visionSubsystem.setVisionConsumer(this::visionConsumer);
+
+        m_slam = new TimeSyncedSLAMLogger();
     }
 
     public void visionConsumer(List<TimestampVisionUpdate> visionUpdates) {
-
-        Pose3d[] seenLandmarks = new Pose3d[visionUpdates.size()];
-
-        int i = 0;
         for (TimestampVisionUpdate update : visionUpdates) {
-            m_slam.addVisionMeasurement(update.pose(), update.covariance(), update.tagId() - 1, update.timestamp());
-
-            Pose3d pose = m_slam.getRobotPose();
-            if (pose == null) {
-                continue;
-            }
-            Pose3d tagPose = pose.plus(update.pose());
-            seenLandmarks[i] = tagPose;
-
-            i++;
+            m_slam.addEntry(new BufferEntry(update.pose(), update.covariance(), update.tagId(), update.timestamp()));
         }
-
-        // System.out.println("Vision updates: " + visionUpdates.size());
-
-        // seenLandmarksPub.set(seenLandmarks);
     }
 }

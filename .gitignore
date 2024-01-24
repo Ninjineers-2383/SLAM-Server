@@ -283,3 +283,5 @@ gradle-app.setting
 
 # VS Code settings file
 .vscode/
+
+*.g2o
