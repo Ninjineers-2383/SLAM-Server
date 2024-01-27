@@ -96,7 +96,7 @@ public class VisionSubsystem {
 
     private SimpleMatrix getCov(Transform3d transform) {
         double val = varianceStatic + varianceScale * transform.getTranslation().getNorm();
-        SimpleMatrix cov = SimpleMatrix.identity(7).scale(val);
+        SimpleMatrix cov = SimpleMatrix.identity(6).scale(val);
         return cov;
     }
 

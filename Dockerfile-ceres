@@ -1,4 +1,4 @@
-FROM --platform=x86_64 ubuntu:20.04
+FROM --platform=x86_64 ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -11,15 +11,20 @@ RUN apt-get update && \
     libgflags-dev \
     libatlas-base-dev \
     libeigen3-dev \
-    curl
+    curl \
+    libsuitesparse-dev
+
+RUN apt-get install libceres-dev -y
 
 # Install ceres-solver
-RUN curl http://ceres-solver.org/ceres-solver-2.2.0.tar.gz | tar -xz \
-    && cd ceres-solver-2.2.0 \
-    && mkdir build \
-    && cd build \
-    && cmake .. \
+COPY pose_graph_3d /pose_graph_3d
+
+RUN mkdir posegraph-bin \
+    && cd posegraph-bin \
+    && cmake ../pose_graph_3d \
     && make -j$(nproc) \
-    && make install \
-    && cd ../.. \
-    && rm -rf ceres-solver-2.2.0
+    && mv pose_graph_3d /usr/local/bin \
+    && cd .. \
+    && rm -rf posegraph-bin pose_graph_3d
+
+CMD ["bash"]

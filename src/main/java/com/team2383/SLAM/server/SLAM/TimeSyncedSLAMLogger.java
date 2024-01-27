@@ -9,11 +9,26 @@ import com.team2383.SLAM.server.SLAM.buffer.TimeSyncedBuffer;
 
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Twist3d;
 
 public class TimeSyncedSLAMLogger {
     private TimeSyncedBuffer buffer = new TimeSyncedBuffer();
 
+    boolean enabled = true;
+
+    private double getTwistSqNorm(Twist3d twist3d) {
+        return twist3d.dx * twist3d.dx + twist3d.dy * twist3d.dy
+                + twist3d.dz * twist3d.dz;
+    }
+
     public void addEntry(BufferEntry entry) {
+        if (!enabled) {
+            if (entry.isSpeedsEntry() && getTwistSqNorm(entry.chassis.get().twist3d()) > 1E-5) {
+                enabled = true;
+            } else {
+                return;
+            }
+        }
         buffer.addEntry(entry);
     }
 
@@ -35,9 +50,12 @@ public class TimeSyncedSLAMLogger {
             chassisOne = chassisTwo;
             intermediateVisionEntries.clear();
             BufferEntry next = iterator.next();
-            while (next.isVisionEntry()) {
+            while (next.isVisionEntry() && iterator.hasNext()) {
                 intermediateVisionEntries.add(next);
                 next = iterator.next();
+            }
+            if (next.isVisionEntry()) {
+                break;
             }
             chassisTwo = next;
 

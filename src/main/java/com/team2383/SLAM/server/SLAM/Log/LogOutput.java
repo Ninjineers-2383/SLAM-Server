@@ -24,11 +24,13 @@ public class LogOutput {
 
     public int addChassisState(Pose3d pose, SimpleMatrix information) {
         int prevId = lastID;
-        int id = lastID++;
+        lastID += 1;
+        int id = lastID;
         vertices.put(id, new LogVertex(id, pose));
 
         if (prevId != 100) {
-            edges.add(new LogEdge(prevId - 1, id, pose.minus(vertices.get(prevId - 1).pose()), information));
+            edges.add(new LogEdge(prevId, id, pose.minus(vertices.get(prevId).pose()),
+                    information));
         }
 
         return id;
@@ -42,7 +44,10 @@ public class LogOutput {
     }
 
     public Pose3d getLatestPose() {
-        return vertices.get(lastID - 1).pose();
+        if (lastID == 100) {
+            return new Pose3d();
+        }
+        return vertices.get(lastID).pose();
     }
 
     public void saveg2o(String filename) {
@@ -68,7 +73,7 @@ public class LogOutput {
             for (LogEdge edge : edges) {
                 // EDGE_SE3:QUAT
                 builder.append(String.format("EDGE_SE3:QUAT %d %d %f %f %f %f %f %f %f " +
-                        "%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n",
+                        "%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n",
                         edge.from(), edge.to(),
                         edge.distance().getTranslation().getX(), edge.distance().getTranslation().getY(),
                         edge.distance().getTranslation().getZ(),
@@ -78,14 +83,11 @@ public class LogOutput {
                         edge.distance().getRotation().getQuaternion().getW(),
                         edge.information().get(0, 0), edge.information().get(0, 1), edge.information().get(0, 2),
                         edge.information().get(0, 3), edge.information().get(0, 4), edge.information().get(0, 5),
-                        edge.information().get(0, 6), edge.information().get(1, 1), edge.information().get(1, 2),
-                        edge.information().get(1, 3), edge.information().get(1, 4), edge.information().get(2, 5),
-                        edge.information().get(1, 6), edge.information().get(2, 2), edge.information().get(2, 3),
-                        edge.information().get(2, 4), edge.information().get(2, 5), edge.information().get(2, 6),
+                        edge.information().get(1, 1), edge.information().get(1, 2), edge.information().get(1, 3),
+                        edge.information().get(1, 4), edge.information().get(2, 5), edge.information().get(2, 2),
+                        edge.information().get(2, 3), edge.information().get(2, 4), edge.information().get(2, 5),
                         edge.information().get(3, 3), edge.information().get(3, 4), edge.information().get(3, 5),
-                        edge.information().get(3, 6), edge.information().get(4, 4), edge.information().get(4, 5),
-                        edge.information().get(4, 6), edge.information().get(5, 5), edge.information().get(5, 6),
-                        edge.information().get(6, 6)));
+                        edge.information().get(4, 4), edge.information().get(4, 5), edge.information().get(5, 5)));
             }
 
             writer.write(builder.toString());

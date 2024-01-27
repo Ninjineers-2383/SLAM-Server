@@ -1,0 +1,1 @@
+docker run -it -v .:/src ceres '/src/optimize-internal.sh'

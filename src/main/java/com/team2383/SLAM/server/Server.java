@@ -56,7 +56,8 @@ public class Server {
 
         reinitializeSLAM(numLandmarks, new Pose3d[0]);
 
-        covariance = SimpleMatrix.identity(7).scale(0.01);
+        covariance = SimpleMatrix.diag(1, 1, 0.001, 0.001, 0.001, 1).scale(0.01);
+
     }
 
     public void loop() {
@@ -64,7 +65,7 @@ public class Server {
         m_visionSubsystem.setVisionConstants(camTransformsSub.get(), varianceScaleSub.get(), varianceStaticSub.get());
 
         for (TimestampedObject<Twist3d> twist : twists) {
-            m_slam.addEntry(new BufferEntry(twist.value, covariance.copy(), twist.timestamp));
+            m_slam.addEntry(new BufferEntry(twist.value, covariance.copy(), twist.serverTime / 1000000.0));
         }
 
         m_visionSubsystem.periodic();

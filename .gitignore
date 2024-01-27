@@ -285,3 +285,4 @@ gradle-app.setting
 .vscode/
 
 *.g2o
+poses_*.txt
