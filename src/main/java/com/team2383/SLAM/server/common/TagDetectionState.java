@@ -1,4 +1,4 @@
-package com.team2383.SLAM.server.SLAM;
+package com.team2383.SLAM.server.common;
 
 import edu.wpi.first.math.geometry.Transform3d;
 

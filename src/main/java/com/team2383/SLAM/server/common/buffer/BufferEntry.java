@@ -1,34 +1,35 @@
-package com.team2383.SLAM.server.SLAM.buffer;
+package com.team2383.SLAM.server.common.buffer;
 
 import java.util.Optional;
 
 import org.ejml.simple.SimpleMatrix;
 
+import com.team2383.SLAM.server.timedTypes.TimedRobotUpdate;
+
 import edu.wpi.first.math.geometry.Transform3d;
-import edu.wpi.first.math.geometry.Twist3d;
 
 public class BufferEntry implements Comparable<BufferEntry> {
-    public final Optional<ChassisResults> chassis;
+    public final Optional<RobotResult> robot;
     public final Optional<VisionResult> vision;
     public final SimpleMatrix cov;
     public final double timestamp;
 
-    public BufferEntry(Twist3d twist3d, SimpleMatrix cov, double timestamp) {
-        this.chassis = Optional.of(new ChassisResults(twist3d));
+    public BufferEntry(TimedRobotUpdate robot, SimpleMatrix cov, double timestamp) {
+        this.robot = Optional.of(new RobotResult(robot));
         this.vision = Optional.empty();
         this.cov = cov;
         this.timestamp = timestamp;
     }
 
     public BufferEntry(Transform3d robotToTag, SimpleMatrix cov, Integer landmarkIndex, double timestamp) {
-        this.chassis = Optional.empty();
+        this.robot = Optional.empty();
         this.vision = Optional.of(new VisionResult(robotToTag, landmarkIndex));
         this.cov = cov;
         this.timestamp = timestamp;
     }
 
     public boolean isSpeedsEntry() {
-        return chassis.isPresent();
+        return robot.isPresent();
     }
 
     public boolean isVisionEntry() {

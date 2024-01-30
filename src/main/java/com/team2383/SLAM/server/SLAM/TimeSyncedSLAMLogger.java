@@ -3,32 +3,29 @@ package com.team2383.SLAM.server.SLAM;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+import com.team2383.SLAM.server.ISLAMProvider;
 import com.team2383.SLAM.server.SLAM.Log.LogOutput;
-import com.team2383.SLAM.server.SLAM.buffer.BufferEntry;
-import com.team2383.SLAM.server.SLAM.buffer.TimeSyncedBuffer;
+import com.team2383.SLAM.server.common.buffer.BufferEntry;
+import com.team2383.SLAM.server.common.buffer.TimeSyncedBuffer;
 
 import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Twist2d;
 import edu.wpi.first.math.geometry.Twist3d;
+import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
+import edu.wpi.first.math.kinematics.SwerveDriveWheelPositions;
 
-public class TimeSyncedSLAMLogger {
-    private TimeSyncedBuffer buffer = new TimeSyncedBuffer();
+public class TimeSyncedSLAMLogger implements ISLAMProvider {
+    private final TimeSyncedBuffer buffer = new TimeSyncedBuffer();
+    private final SwerveDriveKinematics kinematics;
 
-    boolean enabled = true;
-
-    private double getTwistSqNorm(Twist3d twist3d) {
-        return twist3d.dx * twist3d.dx + twist3d.dy * twist3d.dy
-                + twist3d.dz * twist3d.dz;
+    public TimeSyncedSLAMLogger(SwerveDriveKinematics kinematics) {
+        this.kinematics = kinematics;
     }
 
+    @Override
     public void addEntry(BufferEntry entry) {
-        if (!enabled) {
-            if (entry.isSpeedsEntry() && getTwistSqNorm(entry.chassis.get().twist3d()) > 1E-5) {
-                enabled = true;
-            } else {
-                return;
-            }
-        }
         buffer.addEntry(entry);
     }
 
@@ -63,15 +60,42 @@ public class TimeSyncedSLAMLogger {
 
             Pose3d poseOne = log.getLatestPose();
 
-            Pose3d poseTwo = poseOne.exp(chassisTwo.chassis.get().twist3d());
+            SwerveDriveWheelPositions wheelPositionsOne = new SwerveDriveWheelPositions(
+                    chassisOne.robot.get().update().modulePositions);
+            SwerveDriveWheelPositions wheelPositionsTwo = new SwerveDriveWheelPositions(
+                    chassisTwo.robot.get().update().modulePositions);
+
+            Twist2d twist = kinematics.toTwist2d(wheelPositionsOne, wheelPositionsTwo);
+
+            Rotation3d rotationOne = chassisOne.robot.get().update().gyroAngle;
+            Rotation3d rotationTwo = chassisTwo.robot.get().update().gyroAngle;
+
+            Rotation3d delta = rotationTwo.minus(rotationOne);
+
+            Twist3d twist3d = new Twist3d(twist.dx, twist.dy, 0, delta.getX(), delta.getY(), delta.getZ());
+
+            Pose3d poseTwo = poseOne.exp(twist3d);
 
             for (BufferEntry bufferEntry : intermediateVisionEntries) {
                 double timeToCurrent = bufferEntry.timestamp - chassisOne.timestamp;
-                Pose3d partial = poseOne.interpolate(poseTwo, timeToCurrent / timeBetween);
+
+                SwerveDriveWheelPositions positions = wheelPositionsOne.interpolate(wheelPositionsTwo,
+                        timeToCurrent / timeBetween);
+
+                Rotation3d rotation = rotationOne.interpolate(rotationTwo, timeToCurrent / timeBetween);
+
+                Rotation3d delPartialRot = rotation.minus(rotationOne);
+
+                Twist2d partial = kinematics.toTwist2d(wheelPositionsOne, positions);
+
+                Twist3d partial3d = new Twist3d(partial.dx, partial.dy, 0, delPartialRot.getX(), delPartialRot.getY(),
+                        delPartialRot.getZ());
+
+                Pose3d partialPose = poseOne.exp(partial3d);
 
                 Transform3d visionTransform = bufferEntry.vision.get().robotToTag();
 
-                int id = log.addChassisState(partial, chassisTwo.cov.invert());
+                int id = log.addChassisState(partialPose, chassisTwo.cov.invert());
                 log.addVisionEdge(id, bufferEntry.vision.get().landmarkIndex(),
                         visionTransform,
                         bufferEntry.cov.invert());
@@ -81,5 +105,15 @@ public class TimeSyncedSLAMLogger {
         }
 
         return log;
+    }
+
+    @Override
+    public Pose3d getLatestPose() {
+        return null;
+    }
+
+    @Override
+    public double getLatestPoseTime() {
+        return 0;
     }
 }

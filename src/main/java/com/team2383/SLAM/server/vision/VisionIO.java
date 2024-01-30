@@ -11,4 +11,7 @@ public interface VisionIO {
 
     public default void updateInputs(VisionIOInputs inputs, Pose3d robotPose) {
     }
+
+    public default void setTagPoses(Pose3d[] tagPoses) {
+    }
 }

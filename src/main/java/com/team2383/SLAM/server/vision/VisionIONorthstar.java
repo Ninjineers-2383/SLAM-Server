@@ -6,7 +6,7 @@ import edu.wpi.first.networktables.DoubleArraySubscriber;
 import edu.wpi.first.networktables.IntegerSubscriber;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.PubSubOption;
-import edu.wpi.first.networktables.StringPublisher;
+import edu.wpi.first.networktables.StructArrayPublisher;
 
 public class VisionIONorthstar implements VisionIO {
     private static final int cameraId = 0;
@@ -19,7 +19,7 @@ public class VisionIONorthstar implements VisionIO {
     private final DoubleArraySubscriber observationSubscriber;
     private final IntegerSubscriber fpsSubscriber;
 
-    private final StringPublisher tagLayoutPublisher;
+    private final StructArrayPublisher<Pose3d> tagLayoutPublisher;
 
     public VisionIONorthstar(String identifier) {
         var northstarTable = NetworkTableInstance.getDefault().getTable(identifier);
@@ -33,10 +33,8 @@ public class VisionIONorthstar implements VisionIO {
         configTable.getIntegerTopic("camera_gain").publish().set(cameraGain);
         configTable.getDoubleTopic("fiducial_size_m").publish().set(Units.inchesToMeters(6));
         tagLayoutPublisher = configTable
-                .getStringTopic("tag_layout")
-                .publish();
-
-        tagLayoutPublisher.set("");
+                .getStructArrayTopic("tag_layout", Pose3d.struct)
+                .publish(PubSubOption.sendAll(true));
 
         var outputTable = northstarTable.getSubTable("output");
         observationSubscriber = outputTable
@@ -55,5 +53,9 @@ public class VisionIONorthstar implements VisionIO {
             inputs.frames[i] = queue[i].value;
         }
         inputs.fps = fpsSubscriber.get();
+    }
+
+    public void setTagPoses(Pose3d[] poses) {
+        tagLayoutPublisher.set(poses);
     }
 }

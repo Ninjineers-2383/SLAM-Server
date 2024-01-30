@@ -34,8 +34,8 @@ public class VisionSubsystem {
         this.inputs = new VisionIOInputs[visionIO.length];
         for (int i = 0; i < visionIO.length; i++) {
             inputs[i] = new VisionIOInputs();
+            visionIO[i].setTagPoses(tagPoses);
         }
-
     }
 
     public void periodic() {

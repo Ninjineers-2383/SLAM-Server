@@ -1,4 +1,4 @@
-package com.team2383.SLAM.server.SLAM.buffer;
+package com.team2383.SLAM.server.common.buffer;
 
 import java.util.TreeSet;
 import java.util.Iterator;
