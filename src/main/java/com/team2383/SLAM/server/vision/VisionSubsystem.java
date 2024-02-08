@@ -56,12 +56,10 @@ public class VisionSubsystem {
                         Pose3d pose = new Pose3d(
                                 values[2], values[3], values[4],
                                 new Rotation3d(new Quaternion(values[5], values[6], values[7], values[8])));
-                        int tag1 = (int) values[9], tag2 = (int) values[10];
-                        Transform3d offset1 = new Transform3d(pose, tagPoses[tag1]);
-                        Transform3d offset2 = new Transform3d(pose, tagPoses[tag2]);
+                        int tag1 = (int) values[9];
+                        Transform3d offset = new Transform3d(pose, tagPoses[tag1]);
 
-                        updates.add(new TimestampVisionUpdate(timestamp, offset1, getCov(offset1), tag1));
-                        updates.add(new TimestampVisionUpdate(timestamp, offset2, getCov(offset2), tag2));
+                        updates.add(new TimestampVisionUpdate(timestamp, offset, getCov(offset), tag1));
 
                     case 2: // 2 transform estimates
                         double error1 = values[1];
