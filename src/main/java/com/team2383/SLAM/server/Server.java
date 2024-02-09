@@ -20,6 +20,7 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.networktables.BooleanSubscriber;
 import edu.wpi.first.networktables.DoubleSubscriber;
+import edu.wpi.first.networktables.IntegerSubscriber;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.PubSubOption;
@@ -44,6 +45,8 @@ public class Server {
     private final BooleanSubscriber saveAndExitSub;
     private final DoubleSubscriber varianceScaleSub;
     private final DoubleSubscriber varianceStaticSub;
+    private final IntegerSubscriber poseFilterSizeSub;
+    private final DoubleSubscriber poseOutlierDistanceSub;
 
     private final StructPublisher<TimedPose3d> posePub;
 
@@ -58,6 +61,8 @@ public class Server {
         camTransformsSub = table.getStructArrayTopic("camTransforms", Transform3d.struct).subscribe(new Transform3d[0]);
         varianceScaleSub = table.getDoubleTopic("varianceScale").subscribe(0);
         varianceStaticSub = table.getDoubleTopic("varianceStatic").subscribe(0);
+        poseFilterSizeSub = table.getIntegerTopic("poseFilterSize").subscribe(5);
+        poseOutlierDistanceSub = table.getDoubleTopic("PoseOutlierDistance").subscribe(0);
 
         robotUpdateSub = table.getStructTopic("robotUpdate", TimedRobotUpdate.struct)
                 .subscribe(new TimedRobotUpdate(), PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
@@ -102,6 +107,10 @@ public class Server {
         TimestampedObject<TimedRobotUpdate>[] updates = robotUpdateSub.readQueue();
         m_visionSubsystem.setVisionConstants(camTransformsSub.get(), varianceScaleSub.get(), varianceStaticSub.get());
 
+        if (m_slam instanceof LocalizationServer) {
+            ((LocalizationServer) m_slam).setOutlierRejectionDistance(poseOutlierDistanceSub.get());
+        }
+
         for (TimestampedObject<TimedRobotUpdate> robotUpdate : updates) {
             m_slam.addEntry(new BufferEntry(robotUpdate.value, covariance.copy(), robotUpdate.serverTime / 1000000.0));
         }
@@ -138,7 +147,8 @@ public class Server {
             }
             m_slam = new TimeSyncedSLAMLogger(new SwerveDriveKinematics(moduleLocations));
         } else {
-            m_slam = new LocalizationServer(landmarks, new SwerveDriveKinematics(moduleLocations));
+            m_slam = new LocalizationServer(landmarks, new SwerveDriveKinematics(moduleLocations),
+                    (int) poseFilterSizeSub.get(), poseOutlierDistanceSub.get());
         }
 
         System.out.println("SLAM reinitialized");

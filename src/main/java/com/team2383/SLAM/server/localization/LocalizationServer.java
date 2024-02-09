@@ -16,9 +16,11 @@ public class LocalizationServer implements ISLAMProvider {
     private final SwerveDrivePoseEstimator estimator;
     private final Pose3d[] landmarks;
 
+    private PoseFilter poseFilter;
     private double latestTime = 0;
 
-    public LocalizationServer(Pose3d[] landmarks, SwerveDriveKinematics kinematics) {
+    public LocalizationServer(Pose3d[] landmarks, SwerveDriveKinematics kinematics, int poseFilterSize,
+            double poseFilterOutlierDistance) {
         estimator = new SwerveDrivePoseEstimator(kinematics, new Rotation2d(), new SwerveModulePosition[] {
                 new SwerveModulePosition(),
                 new SwerveModulePosition(),
@@ -27,6 +29,8 @@ public class LocalizationServer implements ISLAMProvider {
         },
                 new Pose2d());
         this.landmarks = landmarks;
+
+        poseFilter = new PoseFilter(poseFilterSize, poseFilterOutlierDistance);
     }
 
     @Override
@@ -35,7 +39,11 @@ public class LocalizationServer implements ISLAMProvider {
             Pose2d pose = landmarks[entry.vision.get().landmarkIndex() - 1]
                     .plus(entry.vision.get().robotToTag().inverse())
                     .toPose2d();
-            estimator.addVisionMeasurement(pose, entry.timestamp, VecBuilder.fill(0.1, 0.1, 0.1));
+            if (!poseFilter.next(pose)) {
+                return;
+            }
+            estimator.addVisionMeasurement(pose, entry.timestamp,
+                    VecBuilder.fill(entry.cov.get(0, 0), entry.cov.get(1, 1), entry.cov.get(5, 5)));
         } else {
             estimator.updateWithTime(entry.timestamp, entry.robot.get().update().gyroAngle.toRotation2d(),
                     entry.robot.get().update().modulePositions);
@@ -56,5 +64,9 @@ public class LocalizationServer implements ISLAMProvider {
     @Override
     public double getLatestPoseTime() {
         return latestTime;
+    }
+
+    public void setOutlierRejectionDistance(double distance) {
+        poseFilter.rejectionDistance = distance;
     }
 }
