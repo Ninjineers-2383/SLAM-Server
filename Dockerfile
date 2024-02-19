@@ -2,13 +2,15 @@ FROM gradle:jdk17-jammy as builder
 
 ENV APP_HOME=/usr/app/
 WORKDIR $APP_HOME
-COPY build.gradle settings.gradle $APP_HOME
 
+COPY build.gradle settings.gradle $APP_HOME
 COPY gradle $APP_HOME/gradle
+
+RUN gradle build
 
 COPY src $APP_HOME/src
 
-RUN gradle clean build
+RUN gradle build
 
 RUN mkdir -p out && \
     tar -xvf build/distributions/app.tar -C out

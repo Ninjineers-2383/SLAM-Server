@@ -26,6 +26,7 @@ public class TimeSyncedSLAMLogger implements ISLAMProvider {
 
     @Override
     public void addEntry(BufferEntry entry) {
+        System.out.println("Added entry" + entry.toString());
         buffer.addEntry(entry);
     }
 
@@ -39,6 +40,9 @@ public class TimeSyncedSLAMLogger implements ISLAMProvider {
         Iterator<BufferEntry> iterator = getEntries();
         BufferEntry chassisOne;
         BufferEntry chassisTwo = iterator.next();
+        while (!chassisTwo.isSpeedsEntry()) {
+            chassisTwo = iterator.next();
+        }
         ArrayList<BufferEntry> intermediateVisionEntries = new ArrayList<>();
 
         log.addChassisState(new Pose3d(), null);

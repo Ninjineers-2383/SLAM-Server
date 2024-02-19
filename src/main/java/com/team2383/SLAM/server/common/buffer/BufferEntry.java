@@ -49,4 +49,21 @@ public class BufferEntry implements Comparable<BufferEntry> {
     public int compareTo(BufferEntry o) {
         return Double.compare(this.timestamp, o.timestamp);
     }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("BufferEntry [timestamp=" + timestamp + ", ");
+        if (isSpeedsEntry()) {
+            sb.append("robot=");
+            sb.append(robot.get().toString());
+        } else if (isVisionEntry()) {
+            sb.append("vision=");
+            sb.append(vision.get().toString());
+        } else {
+            sb.append("Unknown");
+        }
+        sb.append("]");
+        return sb.toString();
+    }
 }

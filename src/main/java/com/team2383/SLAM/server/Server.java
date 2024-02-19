@@ -122,7 +122,9 @@ public class Server {
                 System.out.println("Saving and exiting");
                 LogOutput log = ((TimeSyncedSLAMLogger) m_slam).export();
                 log.saveg2o("output.g2o");
-                System.exit(0);
+                while (true) {
+
+                }
             }
         }
 
