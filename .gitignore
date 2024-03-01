@@ -284,3 +284,7 @@ gradle-app.setting
 
 *.g2o
 poses_*.txt
+
+*.pyc
+
+out.json

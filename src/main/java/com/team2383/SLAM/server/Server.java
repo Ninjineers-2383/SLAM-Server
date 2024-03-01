@@ -31,7 +31,7 @@ import edu.wpi.first.networktables.TimestampedObject;
 
 public class Server {
     private VisionSubsystem m_visionSubsystem;
-    private ISLAMProvider m_slam;
+    private ISLAMProvider[] m_slam;
 
     private SimpleMatrix covariance;
 
@@ -107,30 +107,39 @@ public class Server {
         TimestampedObject<TimedRobotUpdate>[] updates = robotUpdateSub.readQueue();
         m_visionSubsystem.setVisionConstants(camTransformsSub.get(), varianceScaleSub.get(), varianceStaticSub.get());
 
-        if (m_slam instanceof LocalizationServer) {
-            ((LocalizationServer) m_slam).setOutlierRejectionDistance(poseOutlierDistanceSub.get());
-        }
+        for (ISLAMProvider slam_instance : m_slam) {
 
-        for (TimestampedObject<TimedRobotUpdate> robotUpdate : updates) {
-            m_slam.addEntry(new BufferEntry(robotUpdate.value, covariance.copy(), robotUpdate.serverTime / 1000000.0));
+            if (slam_instance instanceof LocalizationServer) {
+                ((LocalizationServer) slam_instance).setOutlierRejectionDistance(poseOutlierDistanceSub.get());
+            }
+
+            for (TimestampedObject<TimedRobotUpdate> robotUpdate : updates) {
+                slam_instance.addEntry(
+                        new BufferEntry(robotUpdate.value, covariance.copy(), robotUpdate.serverTime / 1000000.0));
+            }
         }
 
         m_visionSubsystem.periodic();
 
         if (saveAndExitSub.get()) {
-            if (m_slam instanceof TimeSyncedSLAMLogger) {
-                System.out.println("Saving and exiting");
-                LogOutput log = ((TimeSyncedSLAMLogger) m_slam).export();
-                log.saveg2o("output.g2o");
-                while (true) {
+            for (ISLAMProvider slam_instance : m_slam) {
+                if (slam_instance instanceof TimeSyncedSLAMLogger) {
+                    System.out.println("Saving and exiting");
+                    LogOutput log = ((TimeSyncedSLAMLogger) slam_instance).export();
+                    log.saveg2o("output.g2o");
+                    while (true) {
 
+                    }
                 }
             }
         }
 
-        posePub.set(new TimedPose3d(m_slam.getLatestPose(),
-                m_slam.getLatestPoseTime()));
-        // posePub.set(m_slam.getLatestPose());
+        for (ISLAMProvider slam_instance : m_slam) {
+            if (slam_instance instanceof LocalizationServer) {
+                posePub.set(new TimedPose3d(slam_instance.getLatestPose(),
+                        slam_instance.getLatestPoseTime()));
+            }
+        }
     }
 
     private void reinitializeSLAM(Pose3d[] landmarks, Translation2d[] moduleLocations) {
@@ -143,22 +152,28 @@ public class Server {
 
         m_visionSubsystem.setVisionConsumer(this::visionConsumer);
 
+        if (moduleLocations.length != 4) {
+            throw new IllegalArgumentException("moduleLocations must be length 4");
+        }
         if (landmarks.length == 0) {
-            if (moduleLocations.length != 4) {
-                throw new IllegalArgumentException("moduleLocations must be length 4");
-            }
-            m_slam = new TimeSyncedSLAMLogger(new SwerveDriveKinematics(moduleLocations));
+            m_slam = new ISLAMProvider[1];
         } else {
-            m_slam = new LocalizationServer(landmarks, new SwerveDriveKinematics(moduleLocations),
+            m_slam = new ISLAMProvider[2];
+            m_slam[1] = new LocalizationServer(landmarks, new SwerveDriveKinematics(moduleLocations),
                     (int) poseFilterSizeSub.get(), poseOutlierDistanceSub.get());
         }
+        m_slam[0] = new TimeSyncedSLAMLogger(new SwerveDriveKinematics(moduleLocations));
 
-        System.out.println("SLAM reinitialized");
+        System.out.println(String.format("SLAM reinitialized with %d providers", m_slam.length));
     }
 
     public void visionConsumer(List<TimestampVisionUpdate> visionUpdates) {
         for (TimestampVisionUpdate update : visionUpdates) {
-            m_slam.addEntry(new BufferEntry(update.pose(), update.covariance(), update.tagId(), update.timestamp()));
+            for (ISLAMProvider slam_instance : m_slam) {
+                slam_instance.addEntry(
+                        new BufferEntry(update.pose(), update.covariance(), update.tagId(), update.timestamp()));
+
+            }
         }
     }
 }
