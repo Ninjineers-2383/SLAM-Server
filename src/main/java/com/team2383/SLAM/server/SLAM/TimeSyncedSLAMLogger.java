@@ -26,7 +26,7 @@ public class TimeSyncedSLAMLogger implements ISLAMProvider {
 
     @Override
     public void addEntry(BufferEntry entry) {
-        System.out.println("Added entry" + entry.toString());
+        // System.out.println("Added entry" + entry.toString());
         buffer.addEntry(entry);
     }
 

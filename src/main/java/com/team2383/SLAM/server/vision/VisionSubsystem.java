@@ -56,11 +56,21 @@ public class VisionSubsystem {
                         Pose3d pose = new Pose3d(
                                 values[2], values[3], values[4],
                                 new Rotation3d(new Quaternion(values[5], values[6], values[7], values[8])));
-                        int tag1 = (int) values[9];
-                        Transform3d offset = new Transform3d(pose, tagPoses[tag1]);
+                        int tag1 = (int) values[9], tag2 = (int) values[10];
+                        Transform3d offset = new Transform3d(pose, tagPoses[tag1 - 1])
+                                .plus(new Transform3d(pose, tagPoses[tag2 - 1])).div(2);
 
-                        updates.add(new TimestampVisionUpdate(timestamp, offset, getCov(offset), tag1));
+                        updates.add(new TimestampVisionUpdate(timestamp,
+                                new Transform3d(pose.plus(camTransforms[i].inverse()), tagPoses[tag1 - 1]),
+                                getCov(offset), tag1));
 
+                        if (Math.abs(tagPoses[tag1 - 1].getY()) < 0.01) {
+                            continue;
+                        }
+                        if (Math.abs(tagPoses[tag2 - 1].getY()) < 0.01) {
+                            continue;
+                        }
+                        break;
                     case 2: // 2 transform estimates
                         double error1 = values[1];
                         Transform3d transform1 = new Transform3d(
@@ -72,16 +82,51 @@ public class VisionSubsystem {
                                 new Rotation3d(new Quaternion(values[13], values[14], values[15], values[16])));
                         int tag = (int) values[17];
 
-                        if (error1 < error2) {
-                            Transform3d robotToTag = camTransforms[i].plus(transform1);
-                            updates.add(new TimestampVisionUpdate(timestamp,
-                                    robotToTag,
-                                    getCov(robotToTag),
-                                    tag));
+                        if (Math.abs(tagPoses[tag - 1].getY()) < 0.01) {
+                            continue;
+                        }
+
+                        // If the ambiguity is too high, throw out the measurement
+                        if (!(error1 < error2 * 0.4 || error2 < error1 * 0.4)) {
+                            continue;
+                        }
+
+                        if (tagPoses.length != 0) {
+                            Rotation3d currentRotation = robotPose.getRotation();
+                            Rotation3d robotPose1Rotation = tagPoses[tag - 1]
+                                    .plus(camTransforms[i].plus(transform1).inverse()).getRotation();
+                            Rotation3d robotPose2Rotation = tagPoses[tag - 1]
+                                    .plus(camTransforms[i].plus(transform2).inverse()).getRotation();
+
+                            if (Math.abs(currentRotation.minus(robotPose1Rotation).getAngle()) < Math
+                                    .abs(currentRotation.minus(robotPose2Rotation).getAngle())) {
+                                Transform3d robotToTag = camTransforms[i].plus(transform1);
+                                updates.add(new TimestampVisionUpdate(timestamp,
+                                        robotToTag,
+                                        getCov(robotToTag),
+                                        tag));
+                            } else {
+                                Transform3d robotToTag = camTransforms[i].plus(transform2);
+                                updates.add(new TimestampVisionUpdate(
+                                        timestamp,
+                                        robotToTag,
+                                        getCov(robotToTag),
+                                        tag));
+                            }
                         } else {
-                            Transform3d robotToTag = camTransforms[i].plus(transform2);
-                            updates.add(new TimestampVisionUpdate(timestamp,
-                                    robotToTag, getCov(robotToTag), tag));
+                            if (error1 < error2) {
+                                Transform3d robotToTag = camTransforms[i].plus(transform1);
+                                updates.add(new TimestampVisionUpdate(timestamp,
+                                        robotToTag,
+                                        getCov(robotToTag),
+                                        tag));
+                            } else {
+                                Transform3d robotToTag = camTransforms[i].plus(transform2);
+                                updates.add(new TimestampVisionUpdate(timestamp,
+                                        robotToTag,
+                                        getCov(robotToTag),
+                                        tag));
+                            }
                         }
                         break;
                 }

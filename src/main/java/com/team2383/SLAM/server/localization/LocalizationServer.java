@@ -16,6 +16,8 @@ public class LocalizationServer implements ISLAMProvider {
     private final SwerveDrivePoseEstimator estimator;
     private final Pose3d[] landmarks;
 
+    private BufferEntry latestChassisState;
+
     private PoseFilter poseFilter;
     private double latestTime = 0;
 
@@ -48,6 +50,8 @@ public class LocalizationServer implements ISLAMProvider {
             estimator.updateWithTime(entry.timestamp, entry.robot.get().update().gyroAngle.toRotation2d(),
                     entry.robot.get().update().modulePositions);
             latestTime = entry.robot.get().update().timestamp;
+
+            latestChassisState = entry;
         }
     }
 
@@ -68,5 +72,10 @@ public class LocalizationServer implements ISLAMProvider {
 
     public void setOutlierRejectionDistance(double distance) {
         poseFilter.rejectionDistance = distance;
+    }
+
+    public void resetPose(Pose2d pose) {
+        estimator.resetPosition(latestChassisState.robot.get().update().gyroAngle.toRotation2d(),
+                latestChassisState.robot.get().update().modulePositions, pose);
     }
 }

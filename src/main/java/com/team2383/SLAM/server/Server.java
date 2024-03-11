@@ -14,6 +14,7 @@ import com.team2383.SLAM.server.vision.VisionIONorthstar;
 import com.team2383.SLAM.server.vision.VisionSubsystem;
 import com.team2383.SLAM.server.vision.VisionSubsystem.TimestampVisionUpdate;
 
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -47,6 +48,7 @@ public class Server {
     private final DoubleSubscriber varianceStaticSub;
     private final IntegerSubscriber poseFilterSizeSub;
     private final DoubleSubscriber poseOutlierDistanceSub;
+    private final StructSubscriber<Pose2d> poseReset;
 
     private final StructPublisher<TimedPose3d> posePub;
 
@@ -63,6 +65,7 @@ public class Server {
         varianceStaticSub = table.getDoubleTopic("varianceStatic").subscribe(0);
         poseFilterSizeSub = table.getIntegerTopic("poseFilterSize").subscribe(5);
         poseOutlierDistanceSub = table.getDoubleTopic("PoseOutlierDistance").subscribe(0);
+        poseReset = table.getStructTopic("PoseReset", Pose2d.struct).subscribe(new Pose2d());
 
         robotUpdateSub = table.getStructTopic("robotUpdate", TimedRobotUpdate.struct)
                 .subscribe(new TimedRobotUpdate(), PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
@@ -138,6 +141,15 @@ public class Server {
             if (slam_instance instanceof LocalizationServer) {
                 posePub.set(new TimedPose3d(slam_instance.getLatestPose(),
                         slam_instance.getLatestPoseTime()));
+            }
+        }
+
+        Pose2d[] reset = poseReset.readQueueValues();
+        if (reset.length != 0) {
+            for (ISLAMProvider slam_instance : m_slam) {
+                if (slam_instance instanceof LocalizationServer) {
+                    ((LocalizationServer) slam_instance).resetPose(reset[reset.length - 1]);
+                }
             }
         }
     }
