@@ -28,6 +28,8 @@ public class VisionSubsystem {
     private double varianceScale;
     private double varianceStatic;
 
+    private boolean enableSingleTag = false;
+
     public VisionSubsystem(Pose3d[] tagPoses, VisionIO... visionIO) {
         this.tagPoses = tagPoses;
         this.visionIO = visionIO;
@@ -72,6 +74,9 @@ public class VisionSubsystem {
                         }
                         break;
                     case 2: // 2 transform estimates
+                        if (!enableSingleTag) {
+                            continue;
+                        }
                         double error1 = values[1];
                         Transform3d transform1 = new Transform3d(
                                 values[2], values[3], values[4],
