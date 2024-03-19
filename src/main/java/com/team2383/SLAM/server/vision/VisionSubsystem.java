@@ -62,16 +62,15 @@ public class VisionSubsystem {
                         Transform3d offset = new Transform3d(pose, tagPoses[tag1 - 1])
                                 .plus(new Transform3d(pose, tagPoses[tag2 - 1])).div(2);
 
-                        updates.add(new TimestampVisionUpdate(timestamp,
-                                new Transform3d(pose.plus(camTransforms[i].inverse()), tagPoses[tag1 - 1]),
-                                getCov(offset), tag1));
-
                         if (Math.abs(tagPoses[tag1 - 1].getY()) < 0.01) {
                             continue;
                         }
                         if (Math.abs(tagPoses[tag2 - 1].getY()) < 0.01) {
                             continue;
                         }
+                        updates.add(new TimestampVisionUpdate(timestamp,
+                                new Transform3d(pose.plus(camTransforms[i].inverse()), tagPoses[tag1 - 1]),
+                                getCov(offset), tag1));
                         break;
                     case 2: // 2 transform estimates
                         if (!enableSingleTag) {
