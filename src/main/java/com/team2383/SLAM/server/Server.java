@@ -10,6 +10,7 @@ import com.team2383.SLAM.server.common.buffer.BufferEntry;
 import com.team2383.SLAM.server.localization.LocalizationServer;
 import com.team2383.SLAM.server.timedTypes.TimedPose3d;
 import com.team2383.SLAM.server.timedTypes.TimedRobotUpdate;
+import com.team2383.SLAM.server.types.CameraParameters;
 import com.team2383.SLAM.server.vision.VisionIONorthstar;
 import com.team2383.SLAM.server.vision.VisionSubsystem;
 import com.team2383.SLAM.server.vision.VisionSubsystem.TimestampVisionUpdate;
@@ -49,11 +50,13 @@ public class Server {
     private final IntegerSubscriber poseFilterSizeSub;
     private final DoubleSubscriber poseOutlierDistanceSub;
     private final StructSubscriber<Pose2d> poseReset;
+    private final StructSubscriber<CameraParameters> camParametersSub;
 
     private final StructPublisher<TimedPose3d> posePub;
 
     private Pose3d[] landmarks = new Pose3d[0];
     private Translation2d[] moduleLocations;
+    private CameraParameters cameraParams;
 
     public Server() {
         NetworkTableInstance inst = NetworkTableInstance.getDefault();
@@ -80,27 +83,35 @@ public class Server {
         posePub = table.getStructTopic("pose", TimedPose3d.struct).publish(PubSubOption.sendAll(true),
                 PubSubOption.keepDuplicates(false));
 
+        camParametersSub = table.getStructTopic("camParameters", CameraParameters.struct)
+                .subscribe(new CameraParameters(), PubSubOption.keepDuplicates(true),
+                        PubSubOption.pollStorage(1));
+
         covariance = SimpleMatrix.diag(1, 1, 0.001, 0.001, 0.001, 1).scale(0.01);
     }
 
     public void loop() {
         TimestampedObject<Translation2d[]>[] modulePositions = moduleLocationsSub.readQueue();
         TimestampedObject<Pose3d[]>[] landmarks = landmarksSub.readQueue();
+        TimestampedObject<CameraParameters>[] cameraParams = camParametersSub.readQueue();
 
-        if (modulePositions.length > 0 || landmarks.length > 0) {
+        if (modulePositions.length > 0 || landmarks.length > 0 || cameraParams.length > 0) {
             if (landmarks.length > 0) {
                 this.landmarks = landmarks[0].value;
             }
             if (modulePositions.length > 0) {
                 this.moduleLocations = modulePositions[0].value;
             }
-            if (this.moduleLocations == null || this.landmarks == null) {
+            if (cameraParams.length > 0) {
+                this.cameraParams = cameraParams[0].value;
+            }
+            if (this.moduleLocations == null || this.landmarks == null || this.cameraParams == null) {
                 return;
             }
             if (moduleLocations.length != 4) {
                 throw new IllegalArgumentException("modulePositions must be length 4");
             }
-            reinitializeSLAM(this.landmarks, this.moduleLocations);
+            reinitializeSLAM(this.landmarks, this.moduleLocations, this.cameraParams);
         }
 
         if (m_slam == null) {
@@ -154,13 +165,13 @@ public class Server {
         }
     }
 
-    private void reinitializeSLAM(Pose3d[] landmarks, Translation2d[] moduleLocations) {
+    private void reinitializeSLAM(Pose3d[] landmarks, Translation2d[] moduleLocations, CameraParameters parameters) {
         m_visionSubsystem = new VisionSubsystem(
                 landmarks,
-                new VisionIONorthstar("northstar-1"),
-                new VisionIONorthstar("northstar-2"),
-                new VisionIONorthstar("northstar-3"),
-                new VisionIONorthstar("northstar-4"));
+                new VisionIONorthstar("northstar-1", parameters),
+                new VisionIONorthstar("northstar-2", parameters),
+                new VisionIONorthstar("northstar-3", parameters),
+                new VisionIONorthstar("northstar-4", parameters));
 
         m_visionSubsystem.setVisionConsumer(this::visionConsumer);
 

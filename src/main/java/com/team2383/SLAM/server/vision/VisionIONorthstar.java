@@ -1,5 +1,7 @@
 package com.team2383.SLAM.server.vision;
 
+import com.team2383.SLAM.server.types.CameraParameters;
+
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.DoubleArraySubscriber;
@@ -9,28 +11,22 @@ import edu.wpi.first.networktables.PubSubOption;
 import edu.wpi.first.networktables.StringPublisher;
 
 public class VisionIONorthstar implements VisionIO {
-    private static final int cameraId = 0;
-    private static final int cameraResolutionWidth = 1280;
-    private static final int cameraResolutionHeight = 720;
-    private static final int cameraAutoExposure = 3;
-    private static final int cameraExposure = 0;
-    private static final int cameraGain = 0;
 
     private final DoubleArraySubscriber observationSubscriber;
     private final IntegerSubscriber fpsSubscriber;
 
     private final StringPublisher tagLayoutPublisher;
 
-    public VisionIONorthstar(String identifier) {
+    public VisionIONorthstar(String identifier, CameraParameters parameters) {
         var northstarTable = NetworkTableInstance.getDefault().getTable(identifier);
 
         var configTable = northstarTable.getSubTable("config");
-        configTable.getIntegerTopic("camera_id").publish().set(cameraId);
-        configTable.getIntegerTopic("camera_resolution_width").publish().set(cameraResolutionWidth);
-        configTable.getIntegerTopic("camera_resolution_height").publish().set(cameraResolutionHeight);
-        configTable.getIntegerTopic("camera_auto_exposure").publish().set(cameraAutoExposure);
-        configTable.getIntegerTopic("camera_exposure").publish().set(cameraExposure);
-        configTable.getIntegerTopic("camera_gain").publish().set(cameraGain);
+        configTable.getIntegerTopic("camera_id").publish().set(0);
+        configTable.getIntegerTopic("camera_resolution_width").publish().set(parameters.cameraResolutionWidth);
+        configTable.getIntegerTopic("camera_resolution_height").publish().set(parameters.cameraResolutionHeight);
+        configTable.getIntegerTopic("camera_auto_exposure").publish().set(parameters.cameraAutoExposure);
+        configTable.getIntegerTopic("camera_exposure").publish().set(parameters.cameraExposure);
+        configTable.getIntegerTopic("camera_gain").publish().set(parameters.cameraGain);
         configTable.getDoubleTopic("fiducial_size_m").publish().set(Units.inchesToMeters(6));
         tagLayoutPublisher = configTable
                 .getStringTopic("tag_layout")
