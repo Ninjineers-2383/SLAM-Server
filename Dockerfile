@@ -1,4 +1,4 @@
-FROM gradle:jdk17-jammy as builder
+FROM gradle:jdk17-jammy@sha256:77a48f339b2bbc261d4448bc5ce7c5aa7c46e1e07b6d8480955aedf6891b7107 as builder
 
 ENV APP_HOME=/usr/app/
 WORKDIR $APP_HOME
@@ -15,7 +15,7 @@ RUN gradle build
 RUN mkdir -p out && \
     tar -xvf build/distributions/app.tar -C out
 
-FROM ubuntu:22.04
+FROM ubuntu:22.04@sha256:77906da86b60585ce12215807090eb327e7386c8fafb5402369e421f44eff17e
 
 LABEL org.opencontainers.image.source https://github.com/Ninjineers-2383/SLAM-Server
 
