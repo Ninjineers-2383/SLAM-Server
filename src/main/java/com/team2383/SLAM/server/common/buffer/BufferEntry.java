@@ -21,9 +21,10 @@ public class BufferEntry implements Comparable<BufferEntry> {
         this.timestamp = timestamp;
     }
 
-    public BufferEntry(Transform3d robotToTag, SimpleMatrix cov, Integer landmarkIndex, double timestamp) {
+    public BufferEntry(Transform3d robotToTag, SimpleMatrix cov, Integer landmarkIndex1, Integer landmarkIndex2,
+            Integer cameraId, double timestamp) {
         this.robot = Optional.empty();
-        this.vision = Optional.of(new VisionResult(robotToTag, landmarkIndex));
+        this.vision = Optional.of(new VisionResult(robotToTag, landmarkIndex1, landmarkIndex2, cameraId));
         this.cov = cov;
         this.timestamp = timestamp;
     }

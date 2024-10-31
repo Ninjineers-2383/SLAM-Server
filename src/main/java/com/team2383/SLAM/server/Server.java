@@ -50,13 +50,13 @@ public class Server {
     private final IntegerSubscriber poseFilterSizeSub;
     private final DoubleSubscriber poseOutlierDistanceSub;
     private final StructSubscriber<Pose2d> poseReset;
-    private final StructSubscriber<CameraParameters> camParametersSub;
+    private final StructArraySubscriber<CameraParameters> camParametersSub;
 
     private final StructPublisher<TimedPose3d> posePub;
 
     private Pose3d[] landmarks = new Pose3d[0];
     private Translation2d[] moduleLocations;
-    private CameraParameters cameraParams;
+    private CameraParameters[] cameraParams;
 
     public Server() {
         NetworkTableInstance inst = NetworkTableInstance.getDefault();
@@ -83,8 +83,8 @@ public class Server {
         posePub = table.getStructTopic("pose", TimedPose3d.struct).publish(PubSubOption.sendAll(true),
                 PubSubOption.keepDuplicates(false));
 
-        camParametersSub = table.getStructTopic("camParameters", CameraParameters.struct)
-                .subscribe(new CameraParameters(), PubSubOption.keepDuplicates(true),
+        camParametersSub = table.getStructArrayTopic("camParameters", CameraParameters.struct)
+                .subscribe(new CameraParameters[0], PubSubOption.keepDuplicates(true),
                         PubSubOption.pollStorage(1));
 
         covariance = SimpleMatrix.diag(1, 1, 0.001, 0.001, 0.001, 1).scale(0.01);
@@ -93,7 +93,7 @@ public class Server {
     public void loop() {
         TimestampedObject<Translation2d[]>[] modulePositions = moduleLocationsSub.readQueue();
         TimestampedObject<Pose3d[]>[] landmarks = landmarksSub.readQueue();
-        TimestampedObject<CameraParameters>[] cameraParams = camParametersSub.readQueue();
+        TimestampedObject<CameraParameters[]>[] cameraParams = camParametersSub.readQueue();
 
         if (modulePositions.length > 0 || landmarks.length > 0 || cameraParams.length > 0) {
             if (landmarks.length > 0) {
@@ -150,8 +150,9 @@ public class Server {
 
         for (ISLAMProvider slam_instance : m_slam) {
             if (slam_instance instanceof LocalizationServer) {
+                long seenLandmarks = ((LocalizationServer) slam_instance).getSeenLandmarks();
                 posePub.set(new TimedPose3d(slam_instance.getLatestPose(),
-                        slam_instance.getLatestPoseTime()));
+                        slam_instance.getLatestPoseTime(), seenLandmarks));
             }
         }
 
@@ -165,13 +166,13 @@ public class Server {
         }
     }
 
-    private void reinitializeSLAM(Pose3d[] landmarks, Translation2d[] moduleLocations, CameraParameters parameters) {
+    private void reinitializeSLAM(Pose3d[] landmarks, Translation2d[] moduleLocations, CameraParameters[] parameters) {
         m_visionSubsystem = new VisionSubsystem(
                 landmarks,
-                new VisionIONorthstar("northstar-1", parameters),
-                new VisionIONorthstar("northstar-2", parameters),
-                new VisionIONorthstar("northstar-3", parameters),
-                new VisionIONorthstar("northstar-4", parameters));
+                new VisionIONorthstar("northstar-1", parameters[0]),
+                new VisionIONorthstar("northstar-2", parameters[1]),
+                new VisionIONorthstar("northstar-3", parameters[2]),
+                new VisionIONorthstar("northstar-4", parameters[3]));
 
         m_visionSubsystem.setVisionConsumer(this::visionConsumer);
 
@@ -194,7 +195,8 @@ public class Server {
         for (TimestampVisionUpdate update : visionUpdates) {
             for (ISLAMProvider slam_instance : m_slam) {
                 slam_instance.addEntry(
-                        new BufferEntry(update.pose(), update.covariance(), update.tagId(), update.timestamp()));
+                        new BufferEntry(update.pose(), update.covariance(), update.tagId1(), update.tagId2(),
+                                update.cameraIndex(), update.timestamp()));
 
             }
         }

@@ -70,7 +70,7 @@ public class VisionSubsystem {
                         }
                         updates.add(new TimestampVisionUpdate(timestamp,
                                 new Transform3d(pose.plus(camTransforms[i].inverse()), tagPoses[tag1 - 1]),
-                                getCov(offset), tag1));
+                                getCov(offset), tag1, tag2, i));
                         break;
                     case 2: // 2 transform estimates
                         if (!enableSingleTag) {
@@ -108,14 +108,14 @@ public class VisionSubsystem {
                                 updates.add(new TimestampVisionUpdate(timestamp,
                                         robotToTag,
                                         getCov(robotToTag),
-                                        tag));
+                                        tag, 0, i));
                             } else {
                                 Transform3d robotToTag = camTransforms[i].plus(transform2);
                                 updates.add(new TimestampVisionUpdate(
                                         timestamp,
                                         robotToTag,
                                         getCov(robotToTag),
-                                        tag));
+                                        tag, 0, i));
                             }
                         } else {
                             if (error1 < error2) {
@@ -123,13 +123,13 @@ public class VisionSubsystem {
                                 updates.add(new TimestampVisionUpdate(timestamp,
                                         robotToTag,
                                         getCov(robotToTag),
-                                        tag));
+                                        tag, 0, i));
                             } else {
                                 Transform3d robotToTag = camTransforms[i].plus(transform2);
                                 updates.add(new TimestampVisionUpdate(timestamp,
                                         robotToTag,
                                         getCov(robotToTag),
-                                        tag));
+                                        tag, 0, i));
                             }
                         }
                         break;
@@ -162,7 +162,8 @@ public class VisionSubsystem {
     }
 
     /** Represents a single vision pose */
-    public static record TimestampVisionUpdate(double timestamp, Transform3d pose, SimpleMatrix covariance, int tagId) {
+    public static record TimestampVisionUpdate(double timestamp, Transform3d pose, SimpleMatrix covariance,
+            int tagId1, int tagId2, int cameraIndex) {
     }
 
 }

@@ -21,6 +21,10 @@ public class LocalizationServer implements ISLAMProvider {
     private PoseFilter poseFilter;
     private double latestTime = 0;
 
+    private long seenLandmarks;
+
+    private int poseCount = 0;
+
     public LocalizationServer(Pose3d[] landmarks, SwerveDriveKinematics kinematics, int poseFilterSize,
             double poseFilterOutlierDistance) {
         estimator = new SwerveDrivePoseEstimator(kinematics, new Rotation2d(), new SwerveModulePosition[] {
@@ -33,14 +37,19 @@ public class LocalizationServer implements ISLAMProvider {
         this.landmarks = landmarks;
 
         poseFilter = new PoseFilter(poseFilterSize, poseFilterOutlierDistance);
+        seenLandmarks = 0;
     }
 
     @Override
     public void addEntry(BufferEntry entry) {
         if (entry.isVisionEntry()) {
-            Pose2d pose = landmarks[entry.vision.get().landmarkIndex() - 1]
+            Pose2d pose = landmarks[entry.vision.get().landmarkIndex1() - 1]
                     .plus(entry.vision.get().robotToTag().inverse())
                     .toPose2d();
+            seenLandmarks |= getTagBitmask(
+                    entry.vision.get().landmarkIndex1(),
+                    entry.vision.get().landmarkIndex2(),
+                    entry.vision.get().cameraId());
             if (!poseFilter.next(pose)) {
                 return;
             }
@@ -53,6 +62,15 @@ public class LocalizationServer implements ISLAMProvider {
 
             latestChassisState = entry;
         }
+    }
+
+    private long getTagBitmask(int landmark1, int landmark2, int cameraIndex) {
+        long value = 0;
+        value |= 1 << (landmark1 - 1) << (cameraIndex * 16);
+        if (landmark2 != 0) {
+            value |= (1 << (landmark2 - 1)) << (cameraIndex * 16);
+        }
+        return value;
     }
 
     public Pose3d getPose() {
@@ -77,5 +95,13 @@ public class LocalizationServer implements ISLAMProvider {
     public void resetPose(Pose2d pose) {
         estimator.resetPosition(latestChassisState.robot.get().update().gyroAngle.toRotation2d(),
                 latestChassisState.robot.get().update().modulePositions, pose);
+    }
+
+    public long getSeenLandmarks() {
+        long copy = seenLandmarks;
+        poseCount++;
+        if (poseCount == 25)
+            seenLandmarks = 0;
+        return copy;
     }
 }

@@ -100,7 +100,7 @@ public class TimeSyncedSLAMLogger implements ISLAMProvider {
                 Transform3d visionTransform = bufferEntry.vision.get().robotToTag();
 
                 int id = log.addChassisState(partialPose, chassisTwo.cov.invert());
-                log.addVisionEdge(id, bufferEntry.vision.get().landmarkIndex(),
+                log.addVisionEdge(id, bufferEntry.vision.get().landmarkIndex1(),
                         visionTransform,
                         bufferEntry.cov.invert());
             }
